@@ -172,15 +172,28 @@ function showTicketDetails(ticketData) {
     `;
     
     ticketContent.innerHTML = ticketHtml;
-    ticketModal.style.display = 'block';
+    ticketModal.style.display = 'none'; // Reset display
+    requestAnimationFrame(() => {
+        ticketModal.classList.add('show');
+        ticketModal.style.display = 'flex';
+    });
 }
 
 function hideTicketModal() {
-    document.getElementById('ticketModal').style.display = 'none';
+    const ticketModal = document.getElementById('ticketModal');
+    ticketModal.classList.remove('show');
+    ticketModal.style.display = 'none';
     // Reset booking form
     document.getElementById('ticketForm').reset();
     document.getElementById('bookingForm').style.display = 'none';
 }
+
+// Close modal when clicking outside
+document.getElementById('ticketModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideTicketModal();
+    }
+});
 
 function escapeHtml(str) {
     if (!str) return '';
