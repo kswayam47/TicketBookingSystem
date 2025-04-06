@@ -49,6 +49,24 @@
                     <button type="button" class="cancel-btn" onclick="hideBookingForm()">Cancel</button>
                 </form>
             </section>
+
+            <!-- Ticket Modal -->
+            <div id="ticketModal" class="modal" style="display: none;">
+                <div class="modal-content">
+                    <span class="close" onclick="hideTicketModal()">&times;</span>
+                    <div id="ticketContent"></div>
+                </div>
+            </div>
+
+            <!-- Snack Ordering Form -->
+            <div id="snackForm" class="snack-form" style="display: none;">
+                <h2>Order Snacks</h2>
+                <div id="snackContainer" class="snack-container"></div>
+                <form id="snackOrderForm">
+                    <button type="submit" class="submit-btn">Place Snack Order</button>
+                    <button type="button" class="cancel-btn" onclick="this.closest('.snack-form').style.display='none'">Skip</button>
+                </form>
+            </div>
         </main>
 
         <footer>
