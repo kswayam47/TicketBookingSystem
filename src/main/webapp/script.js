@@ -44,22 +44,23 @@ function loadSnacks() {
             }
             return response.json();
         })
-        .then(data => {
-            if (!Array.isArray(data)) {
-                throw new Error('Invalid response format');
-            }
+        .then(snacks => {
+            // Store snacks data globally
+            window.snacksData = snacks;
+            
             const snackContainer = document.getElementById('snackContainer');
             if (!snackContainer) return; // Only load if container exists
             
             snackContainer.innerHTML = '';
-            data.forEach(snack => {
+            
+            snacks.forEach(snack => {
                 const snackItem = createSnackItem(snack);
                 snackContainer.appendChild(snackItem);
             });
         })
         .catch(error => {
             console.error('Error loading snacks:', error);
-            showNotification('Error loading snacks menu. Please try again.', true);
+            showNotification('Error loading snacks. Please try again.', true);
         });
 }
 
@@ -136,11 +137,11 @@ function showSnackForm(reservationId) {
 }
 
 function showTicketDetails(ticketData) {
+    // Store ticket data for later use
+    window.lastTicketData = ticketData;
+    
     const ticketModal = document.getElementById('ticketModal');
     const ticketContent = document.getElementById('ticketContent');
-    
-    // Get the first ticket from the array for display
-    const firstTicket = ticketData.tickets[0];
     
     let ticketHtml = `
         <h3>Your Tickets</h3>
@@ -331,12 +332,154 @@ document.getElementById('snackForm').addEventListener('submit', function(e) {
         if (data.error) {
             throw new Error(data.error);
         }
-        showNotification('Snacks ordered successfully!');
-        this.reset();
+        // Store snack order details for the final receipt
+        const snackOrderDetails = {
+            orders: formData.orders,
+            reservationId: formData.reservationId
+        };
+        // Hide snack form
         document.getElementById('snackForm').style.display = 'none';
+        // Show final receipt
+        showFinalReceipt(window.lastTicketData, snackOrderDetails);
     })
     .catch(error => {
         console.error('Error ordering snacks:', error);
         showNotification(error.message || 'Error ordering snacks. Please try again.', true);
     });
 });
+
+function showFinalReceipt(ticketData, snackOrderDetails) {
+    const ticketModal = document.getElementById('ticketModal');
+    const ticketContent = document.getElementById('ticketContent');
+    
+    let receiptHtml = `
+        <h2>Final Receipt</h2>
+        <div class="ticket-section">
+            <h3>Movie Ticket Details</h3>
+            <p><strong>Movie:</strong> ${escapeHtml(ticketData.movieTitle)}</p>
+            <p><strong>Date & Time:</strong> ${formatDate(ticketData.dateTime)}</p>
+            <p><strong>Total Seats:</strong> ${ticketData.tickets.length}</p>
+            <h4>Seat Details:</h4>
+            <div class="ticket-seats">
+    `;
+    
+    let ticketTotal = 0;
+    ticketData.tickets.forEach(ticket => {
+        ticketTotal += ticket.price;
+        receiptHtml += `
+            <div class="seat-info">
+                <p>Screen ${ticket.screenNo}, Row ${ticket.rowNo}, Seat ${ticket.seatNo}</p>
+                <p class="price">₹${ticket.price.toFixed(2)}</p>
+            </div>
+        `;
+    });
+    
+    receiptHtml += `
+        </div>
+        <div class="ticket-total">
+            <p><strong>Ticket Total:</strong> ₹${ticketTotal.toFixed(2)}</p>
+        </div>
+    `;
+    
+    // Add snack order details
+    receiptHtml += `
+        <div class="snack-section">
+            <h3>Snack Order Details</h3>
+            <div class="snack-items">
+    `;
+    
+    let snackTotal = 0;
+    snackOrderDetails.orders.forEach(order => {
+        const snackItem = window.snacksData.find(s => s.id === order.snackId);
+        if (snackItem) {
+            const itemTotal = snackItem.price * order.quantity;
+            snackTotal += itemTotal;
+            receiptHtml += `
+                <div class="snack-item">
+                    <p>${escapeHtml(snackItem.itemName)} x ${order.quantity}</p>
+                    <p class="price">₹${itemTotal.toFixed(2)}</p>
+                </div>
+            `;
+        }
+    });
+    
+    receiptHtml += `
+            </div>
+            <div class="snack-total">
+                <p><strong>Snack Total:</strong> ₹${snackTotal.toFixed(2)}</p>
+            </div>
+        </div>
+        <div class="grand-total">
+            <h3>Grand Total: ₹${(ticketTotal + snackTotal).toFixed(2)}</h3>
+        </div>
+        <div class="receipt-actions">
+            <button onclick="confirmBooking(${ticketData.reservationId})" class="submit-btn">Confirm Booking</button>
+            <button onclick="cancelBooking(${ticketData.reservationId})" class="cancel-btn">Cancel Booking</button>
+        </div>
+    `;
+    
+    ticketContent.innerHTML = receiptHtml;
+    ticketModal.style.display = 'flex';
+}
+
+function confirmBooking(reservationId) {
+    fetch('/api/booking/confirm', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reservationId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        showNotification('Booking confirmed successfully!');
+        hideTicketModal();
+        // Reset all quantity inputs
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.value = 0;
+        });
+    })
+    .catch(error => {
+        console.error('Error confirming booking:', error);
+        showNotification(error.message || 'Error confirming booking. Please try again.', true);
+    });
+}
+
+function cancelBooking(reservationId) {
+    fetch('/api/booking/cancel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reservationId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        showNotification('Booking cancelled successfully.');
+        hideTicketModal();
+        // Reset all quantity inputs
+        document.querySelectorAll('.quantity-input').forEach(input => {
+            input.value = 0;
+        });
+    })
+    .catch(error => {
+        console.error('Error cancelling booking:', error);
+        showNotification(error.message || 'Error cancelling booking. Please try again.', true);
+    });
+}

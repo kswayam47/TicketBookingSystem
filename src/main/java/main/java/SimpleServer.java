@@ -28,6 +28,8 @@ public class SimpleServer {
         server.createContext("/api/book", new BookingHandler());
         server.createContext("/api/snacks", new SnacksHandler());
         server.createContext("/api/snacks/order", new SnackOrderHandler());
+        server.createContext("/api/booking/confirm", new BookingConfirmHandler());
+        server.createContext("/api/booking/cancel", new BookingCancelHandler());
         
         server.setExecutor(null);
         server.start();
@@ -274,8 +276,8 @@ public class SimpleServer {
                 
                 // Build success response with ticket details
                 String successResponse = String.format(
-                    "{\"success\":true,\"message\":\"Booking completed successfully!\",\"reservationId\":%d," +
-                    "\"ticket\":{\"movieTitle\":\"%s\",\"tickets\":%s,\"dateTime\":\"%s\"}}",
+                    "{\"success\":true,\"message\":\"Booking completed successfully!\",\"reservationId\":%d,\"ticket\":{\"reservationId\":%d,\"movieTitle\":\"%s\",\"tickets\":%s,\"dateTime\":\"%s\"}}",
+                    reservationId,
                     reservationId,
                     SimpleServer.escapeJson(movieTitle),
                     ticketsJson.toString(),
@@ -367,15 +369,19 @@ public class SimpleServer {
                 conn = DatabaseConnection.getConnection();
                 conn.setAutoCommit(false);
                 
-                // Get an available employee for snack service
+                // Get any available employee for snack service
+                System.out.println("Looking for available employee...");
                 PreparedStatement empStmt = conn.prepareStatement(
-                    "SELECT EmployeeID FROM employees WHERE Position = 'Snack Counter' LIMIT 1"
+                    "SELECT EmployeeID FROM employees ORDER BY RAND() LIMIT 1"
                 );
                 ResultSet empRs = empStmt.executeQuery();
+                System.out.println("Employee query executed.");
                 if (!empRs.next()) {
-                    throw new SQLException("No snack counter employee available");
+                    System.out.println("No employees found in database.");
+                    throw new SQLException("No employee available");
                 }
                 int employeeId = empRs.getInt("EmployeeID");
+                System.out.println("Found employee ID: " + employeeId);
                 
                 // Process each snack order
                 String[] orders = ordersJson.split("\\},\\{");
@@ -415,6 +421,126 @@ public class SimpleServer {
                 
                 conn.commit();
                 SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Snacks ordered successfully\"}");
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (conn != null) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+    
+    static class BookingConfirmHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!exchange.getRequestMethod().equals("POST")) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+            
+            Connection conn = null;
+            try {
+                String json = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                int reservationId = Integer.parseInt(SimpleServer.extractJsonValue(json, "reservationId"));
+                
+                conn = DatabaseConnection.getConnection();
+                conn.setAutoCommit(false);
+                
+                // Confirm the booking by marking it as confirmed in the database
+                PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE reservation SET Status = 'Confirmed' WHERE ReservationID = ?"
+                );
+                stmt.setInt(1, reservationId);
+                stmt.executeUpdate();
+                
+                conn.commit();
+                SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Booking confirmed successfully\"}");
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (conn != null) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+    }
+    
+    static class BookingCancelHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!exchange.getRequestMethod().equals("POST")) {
+                exchange.sendResponseHeaders(405, -1);
+                return;
+            }
+            
+            Connection conn = null;
+            try {
+                String json = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                int reservationId = Integer.parseInt(SimpleServer.extractJsonValue(json, "reservationId"));
+                
+                conn = DatabaseConnection.getConnection();
+                conn.setAutoCommit(false);
+                
+                // First, restore snack quantities
+                PreparedStatement snackStmt = conn.prepareStatement(
+                    "UPDATE snackscounter sc " +
+                    "INNER JOIN snackorders so ON sc.SnackID = so.SnackID " +
+                    "SET sc.Quantity = sc.Quantity + so.Quantity " +
+                    "WHERE so.ReservationID = ?"
+                );
+                snackStmt.setInt(1, reservationId);
+                snackStmt.executeUpdate();
+                
+                // Delete snack orders
+                PreparedStatement deleteSnackStmt = conn.prepareStatement(
+                    "DELETE FROM snackorders WHERE ReservationID = ?"
+                );
+                deleteSnackStmt.setInt(1, reservationId);
+                deleteSnackStmt.executeUpdate();
+                
+                // Delete tickets
+                PreparedStatement deleteTicketStmt = conn.prepareStatement(
+                    "DELETE FROM tickets WHERE ReservationID = ?"
+                );
+                deleteTicketStmt.setInt(1, reservationId);
+                deleteTicketStmt.executeUpdate();
+                
+                // Delete reservation
+                PreparedStatement deleteReservationStmt = conn.prepareStatement(
+                    "DELETE FROM reservation WHERE ReservationID = ?"
+                );
+                deleteReservationStmt.setInt(1, reservationId);
+                deleteReservationStmt.executeUpdate();
+                
+                conn.commit();
+                SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Booking cancelled successfully\"}");
                 
             } catch (Exception e) {
                 e.printStackTrace();
