@@ -15,10 +15,17 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
+import java.sql.DriverManager;
+import java.sql.Statement;
 
 public class SimpleServer {
+    private static final int PORT = 8080;
+    private static final String DB_URL = "jdbc:mysql://localhost:3306/ticketbookingsystem";
+    private static final String DB_USER = "root";
+    private static final String DB_PASSWORD = "Root@123";
+
     public static void main(String[] args) throws Exception {
-        HttpServer server = HttpServer.create(new InetSocketAddress(8080), 0);
+        HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
         
         // Serve static files
         server.createContext("/", new StaticFileHandler());
@@ -31,11 +38,15 @@ public class SimpleServer {
         server.createContext("/api/booking/confirm", new BookingConfirmHandler());
         server.createContext("/api/booking/cancel", new BookingCancelHandler());
         
+        // Authentication endpoints
+        server.createContext("/api/login", new LoginHandler());
+        server.createContext("/api/signup", new SignupHandler());
+        
         server.setExecutor(null);
         server.start();
         
-        System.out.println("Server started on port 8080");
-        System.out.println("Open http://localhost:8080 in your browser");
+        System.out.println("Server started on port " + PORT);
+        System.out.println("Open http://localhost:" + PORT + " in your browser");
     }
     
     static class StaticFileHandler implements HttpHandler {
@@ -325,7 +336,7 @@ public class SimpleServer {
                 
                 System.out.println("Final response: " + successResponse);
                 
-                SimpleServer.sendJsonResponse(exchange, 200, successResponse);
+                SimpleServer.sendJsonResponse(exchange, successResponse, 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -336,7 +347,7 @@ public class SimpleServer {
                         ex.printStackTrace();
                     }
                 }
-                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}", 500);
             } finally {
                 if (conn != null) {
                     try {
@@ -380,7 +391,7 @@ public class SimpleServer {
                 }
                 jsonBuilder.append("]");
                 
-                SimpleServer.sendJsonResponse(exchange, 200, jsonBuilder.toString());
+                SimpleServer.sendJsonResponse(exchange, jsonBuilder.toString(), 200);
                 
                 rs.close();
                 stmt.close();
@@ -388,7 +399,7 @@ public class SimpleServer {
                 
             } catch (Exception e) {
                 e.printStackTrace();
-                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}", 500);
             }
         }
     }
@@ -461,7 +472,7 @@ public class SimpleServer {
                 }
                 
                 conn.commit();
-                SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Snacks ordered successfully\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Snacks ordered successfully\"}", 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -472,7 +483,7 @@ public class SimpleServer {
                         ex.printStackTrace();
                     }
                 }
-                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}", 500);
             } finally {
                 if (conn != null) {
                     try {
@@ -509,7 +520,7 @@ public class SimpleServer {
                 stmt.executeUpdate();
                 
                 conn.commit();
-                SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Booking confirmed successfully\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Booking confirmed successfully\"}", 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -520,7 +531,7 @@ public class SimpleServer {
                         ex.printStackTrace();
                     }
                 }
-                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}", 500);
             } finally {
                 if (conn != null) {
                     try {
@@ -581,7 +592,7 @@ public class SimpleServer {
                 deleteReservationStmt.executeUpdate();
                 
                 conn.commit();
-                SimpleServer.sendJsonResponse(exchange, 200, "{\"success\": true, \"message\": \"Booking cancelled successfully\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Booking cancelled successfully\"}", 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -592,7 +603,7 @@ public class SimpleServer {
                         ex.printStackTrace();
                     }
                 }
-                SimpleServer.sendJsonResponse(exchange, 500, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}");
+                SimpleServer.sendJsonResponse(exchange, "{\"error\": \"" + SimpleServer.escapeJson(e.getMessage()) + "\"}", 500);
             } finally {
                 if (conn != null) {
                     try {
@@ -601,6 +612,136 @@ public class SimpleServer {
                         e.printStackTrace();
                     }
                 }
+            }
+        }
+    }
+    
+    static class LoginHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, "Method not allowed", 405);
+                return;
+            }
+
+            try {
+                String requestBody = new String(exchange.getRequestBody().readAllBytes());
+                
+                // Parse JSON manually
+                String email = extractJsonValue(requestBody, "email");
+                String password = extractJsonValue(requestBody, "password");
+
+                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                    String sql = "SELECT * FROM customer WHERE Email = ? AND Password = ?";
+                    PreparedStatement stmt = conn.prepareStatement(sql);
+                    stmt.setString(1, email);
+                    stmt.setString(2, password);
+                    
+                    ResultSet rs = stmt.executeQuery();
+                    
+                    if (rs.next()) {
+                        // Create JSON response manually
+                        String response = "{\"success\":true,\"user\":{" +
+                            "\"id\":" + rs.getInt("CustomerID") + "," +
+                            "\"name\":\"" + escapeJson(rs.getString("Name")) + "\"," +
+                            "\"age\":" + rs.getInt("Age") + "," +
+                            "\"gender\":\"" + escapeJson(rs.getString("Gender")) + "\"," +
+                            "\"email\":\"" + escapeJson(rs.getString("Email")) + "\"" +
+                            "}}";
+                        sendJsonResponse(exchange, response);
+                    } else {
+                        String response = "{\"success\":false,\"error\":\"Invalid email or password\"}";
+                        sendJsonResponse(exchange, response, 401);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                String response = "{\"success\":false,\"error\":\"Error during login: " + escapeJson(e.getMessage()) + "\"}";
+                sendJsonResponse(exchange, response, 500);
+            }
+        }
+    }
+
+    static class SignupHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if ("OPTIONS".equals(exchange.getRequestMethod())) {
+                handleCors(exchange);
+                return;
+            }
+
+            if (!"POST".equals(exchange.getRequestMethod())) {
+                sendResponse(exchange, "Method not allowed", 405);
+                return;
+            }
+
+            try {
+                String requestBody = new String(exchange.getRequestBody().readAllBytes());
+                
+                // Parse JSON manually
+                String name = extractJsonValue(requestBody, "name");
+                String email = extractJsonValue(requestBody, "email");
+                String password = extractJsonValue(requestBody, "password");
+                int age = Integer.parseInt(extractJsonValue(requestBody, "age"));
+                String gender = extractJsonValue(requestBody, "gender");
+
+                try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD)) {
+                    // Check if email already exists
+                    String checkSql = "SELECT COUNT(*) FROM customer WHERE Email = ?";
+                    PreparedStatement checkStmt = conn.prepareStatement(checkSql);
+                    checkStmt.setString(1, email);
+                    ResultSet checkRs = checkStmt.executeQuery();
+                    checkRs.next();
+                    
+                    if (checkRs.getInt(1) > 0) {
+                        String response = "{\"success\":false,\"error\":\"Email already exists\"}";
+                        sendJsonResponse(exchange, response, 400);
+                        return;
+                    }
+                    
+                    // Insert new user
+                    String insertSql = "INSERT INTO customer (Name, Age, Gender, Email, Password) VALUES (?, ?, ?, ?, ?)";
+                    PreparedStatement insertStmt = conn.prepareStatement(insertSql, PreparedStatement.RETURN_GENERATED_KEYS);
+                    insertStmt.setString(1, name);
+                    insertStmt.setInt(2, age);
+                    insertStmt.setString(3, gender);
+                    insertStmt.setString(4, email);
+                    insertStmt.setString(5, password);
+                    
+                    int affectedRows = insertStmt.executeUpdate();
+                    
+                    if (affectedRows > 0) {
+                        ResultSet generatedKeys = insertStmt.getGeneratedKeys();
+                        if (generatedKeys.next()) {
+                            int userId = generatedKeys.getInt(1);
+                            
+                            // Create JSON response manually
+                            String response = "{\"success\":true,\"user\":{" +
+                                "\"id\":" + userId + "," +
+                                "\"name\":\"" + escapeJson(name) + "\"," +
+                                "\"age\":" + age + "," +
+                                "\"gender\":\"" + escapeJson(gender) + "\"," +
+                                "\"email\":\"" + escapeJson(email) + "\"" +
+                                "}}";
+                            sendJsonResponse(exchange, response);
+                        } else {
+                            String response = "{\"success\":false,\"error\":\"Failed to create user\"}";
+                            sendJsonResponse(exchange, response, 500);
+                        }
+                    } else {
+                        String response = "{\"success\":false,\"error\":\"Failed to create user\"}";
+                        sendJsonResponse(exchange, response, 500);
+                    }
+                }
+            } catch (Exception e) {
+                e.printStackTrace();
+                String response = "{\"success\":false,\"error\":\"Error during signup: " + escapeJson(e.getMessage()) + "\"}";
+                sendJsonResponse(exchange, response, 500);
             }
         }
     }
@@ -706,7 +847,11 @@ public class SimpleServer {
         return c == ',' || c == '}' || c == ']' || Character.isWhitespace(c);
     }
 
-    private static void sendJsonResponse(HttpExchange exchange, int statusCode, String response) throws IOException {
+    private static void sendJsonResponse(HttpExchange exchange, String response) throws IOException {
+        sendJsonResponse(exchange, response, 200);
+    }
+
+    private static void sendJsonResponse(HttpExchange exchange, String response, int statusCode) throws IOException {
         byte[] responseBytes = response.getBytes(StandardCharsets.UTF_8);
         exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
         exchange.getResponseHeaders().set("Content-Type", "application/json");
@@ -714,5 +859,17 @@ public class SimpleServer {
         try (OutputStream os = exchange.getResponseBody()) {
             os.write(responseBytes);
         }
+    }
+
+    private static void handleCors(HttpExchange exchange) throws IOException {
+        exchange.getResponseHeaders().add("Access-Control-Allow-Origin", "*");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+        exchange.getResponseHeaders().add("Access-Control-Allow-Headers", "Content-Type");
+        exchange.sendResponseHeaders(204, -1);
+    }
+
+    private static void sendResponse(HttpExchange exchange, String message, int statusCode) throws IOException {
+        String response = "{\"error\": \"" + message + "\"}";
+        sendJsonResponse(exchange, response, statusCode);
     }
 }

@@ -1,7 +1,40 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadMovies();
     loadSnacks();
+    setupUserProfile();
 });
+
+function setupUserProfile() {
+    const user = JSON.parse(localStorage.getItem('user'));
+    const header = document.querySelector('header');
+    
+    if (user) {
+        // Create user profile element
+        const userProfile = document.createElement('div');
+        userProfile.className = 'user-profile';
+        userProfile.innerHTML = `
+            <span>Welcome, ${user.name}</span>
+            <button id="logoutBtn">Logout</button>
+        `;
+        
+        // Add to header
+        header.appendChild(userProfile);
+        
+        // Add logout functionality
+        document.getElementById('logoutBtn').addEventListener('click', function() {
+            localStorage.removeItem('user');
+            window.location.reload();
+        });
+    } else {
+        // Create login link
+        const loginLink = document.createElement('div');
+        loginLink.className = 'login-link';
+        loginLink.innerHTML = `<a href="login.html">Login / Sign Up</a>`;
+        
+        // Add to header
+        header.appendChild(loginLink);
+    }
+}
 
 function loadMovies() {
     fetch('/api/movies')
@@ -107,9 +140,29 @@ function updateQuantity(snackId, delta) {
 }
 
 function showBookingForm(movieId) {
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!user) {
+        // Redirect to login page if not logged in
+        window.location.href = 'login.html';
+        return;
+    }
+    
     const bookingForm = document.getElementById('bookingForm');
     bookingForm.style.display = 'block';
     document.getElementById('ticketForm').dataset.movieId = movieId;
+    
+    // Pre-fill user details if logged in
+    if (user) {
+        document.getElementById('name').value = user.name;
+        document.getElementById('age').value = user.age;
+        document.getElementById('gender').value = user.gender;
+        
+        // Disable fields that are pre-filled
+        document.getElementById('name').disabled = true;
+        document.getElementById('age').disabled = true;
+        document.getElementById('gender').disabled = true;
+    }
     
     // Hide snack form until booking is complete
     const snackForm = document.getElementById('snackForm');
@@ -122,6 +175,11 @@ function hideBookingForm() {
     const bookingForm = document.getElementById('bookingForm');
     bookingForm.style.display = 'none';
     document.getElementById('ticketForm').reset();
+    
+    // Re-enable fields
+    document.getElementById('name').disabled = false;
+    document.getElementById('age').disabled = false;
+    document.getElementById('gender').disabled = false;
 }
 
 function showSnackForm(reservationId) {
@@ -281,6 +339,13 @@ function showNotification(message, isError = false) {
 
 document.getElementById('ticketForm').addEventListener('submit', function(e) {
     e.preventDefault();
+    
+    const user = JSON.parse(localStorage.getItem('user'));
+    
+    if (!user) {
+        showNotification('Please login to book tickets', true);
+        return;
+    }
     
     const formData = {
         movieId: parseInt(this.dataset.movieId),
