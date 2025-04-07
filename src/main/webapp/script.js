@@ -143,6 +143,17 @@ function showTicketDetails(ticketData) {
     const ticketModal = document.getElementById('ticketModal');
     const ticketContent = document.getElementById('ticketContent');
     
+    // Debug log to check ticket data
+    console.log('Ticket Data:', ticketData);
+    console.log('Tickets array:', ticketData.tickets);
+    
+    // Check if tickets array exists and has items
+    if (!ticketData.tickets || !Array.isArray(ticketData.tickets) || ticketData.tickets.length === 0) {
+        console.error('No tickets found in the data');
+        showNotification('Error: No ticket information available', true);
+        return;
+    }
+    
     let ticketHtml = `
         <h3>Your Tickets</h3>
         <p><strong>Movie:</strong> ${escapeHtml(ticketData.movieTitle)}</p>
@@ -152,11 +163,29 @@ function showTicketDetails(ticketData) {
         <div class="ticket-seats">
     `;
     
-    ticketData.tickets.forEach(ticket => {
+    let totalAmount = 0;
+    
+    ticketData.tickets.forEach((ticket, index) => {
+        // Debug log for each ticket
+        console.log(`Ticket ${index}:`, ticket);
+        console.log(`Ticket ${index} properties:`, Object.keys(ticket));
+        
+        // Ensure all ticket properties are properly accessed
+        const rowNo = ticket.rowNo !== undefined ? ticket.rowNo : 'N/A';
+        const seatNo = ticket.seatNo !== undefined ? ticket.seatNo : 'N/A';
+        const screenNo = ticket.screenNo !== undefined ? ticket.screenNo : 'N/A';
+        const price = ticket.price !== undefined ? ticket.price : 0;
+        
+        console.log(`Ticket ${index} values:`, { rowNo, seatNo, screenNo, price });
+        
+        totalAmount += price;
+        
         ticketHtml += `
             <div class="seat-info">
-                <p>Screen ${ticket.screenNo}, Row ${ticket.rowNo}, Seat ${ticket.seatNo}</p>
-                <p class="price">₹${ticket.price.toFixed(2)}</p>
+                <p><strong>Screen:</strong> ${screenNo}</p>
+                <p><strong>Row:</strong> ${rowNo}</p>
+                <p><strong>Seat:</strong> ${seatNo}</p>
+                <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
             </div>
         `;
     });
@@ -164,7 +193,7 @@ function showTicketDetails(ticketData) {
     ticketHtml += `
         </div>
         <div class="ticket-total">
-            <p><strong>Total Amount:</strong> ₹${(ticketData.tickets.reduce((sum, ticket) => sum + ticket.price, 0)).toFixed(2)}</p>
+            <p><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
         </div>
         <div class="ticket-actions">
             <button onclick="showSnackForm(${ticketData.reservationId})" class="submit-btn">Order Snacks</button>
@@ -208,10 +237,29 @@ function escapeHtml(str) {
 
 function formatDate(dateString) {
     if (!dateString) return 'N/A';
-    const options = { year: 'numeric', month: 'long', day: 'numeric' };
+    
     try {
-        return new Date(dateString).toLocaleDateString(undefined, options);
+        // Try to parse the date string
+        const date = new Date(dateString);
+        
+        // Check if the date is valid
+        if (isNaN(date.getTime())) {
+            // If not a valid date, try to format the string directly
+            return dateString;
+        }
+        
+        // Format the date with time
+        const options = { 
+            year: 'numeric', 
+            month: 'long', 
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
+        };
+        
+        return date.toLocaleString(undefined, options);
     } catch (e) {
+        console.error('Error formatting date:', e);
         return dateString;
     }
 }
@@ -281,6 +329,14 @@ document.getElementById('ticketForm').addEventListener('submit', function(e) {
         if (data.error) {
             throw new Error(data.error);
         }
+        console.log('Booking response:', data);
+        console.log('Ticket data:', data.ticket);
+        
+        if (!data.ticket || !data.ticket.tickets || !Array.isArray(data.ticket.tickets)) {
+            console.error('Invalid ticket data format:', data.ticket);
+            throw new Error('Invalid ticket data received from server');
+        }
+        
         showNotification('Booking completed successfully!');
         this.reset();
         showTicketDetails(data.ticket);
@@ -352,6 +408,9 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     const ticketModal = document.getElementById('ticketModal');
     const ticketContent = document.getElementById('ticketContent');
     
+    // Debug log to check ticket data
+    console.log('Final Receipt Ticket Data:', ticketData);
+    
     let receiptHtml = `
         <h2>Final Receipt</h2>
         <div class="ticket-section">
@@ -364,12 +423,23 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     `;
     
     let ticketTotal = 0;
-    ticketData.tickets.forEach(ticket => {
-        ticketTotal += ticket.price;
+    ticketData.tickets.forEach((ticket, index) => {
+        // Debug log for each ticket
+        console.log('Final Receipt Ticket:', ticket);
+        
+        // Ensure all ticket properties are properly accessed
+        const rowNo = ticket.rowNo !== undefined ? ticket.rowNo : 'N/A';
+        const seatNo = ticket.seatNo !== undefined ? ticket.seatNo : 'N/A';
+        const screenNo = ticket.screenNo !== undefined ? ticket.screenNo : 'N/A';
+        const price = ticket.price !== undefined ? ticket.price : 0;
+        
+        ticketTotal += price;
         receiptHtml += `
             <div class="seat-info">
-                <p>Screen ${ticket.screenNo}, Row ${ticket.rowNo}, Seat ${ticket.seatNo}</p>
-                <p class="price">₹${ticket.price.toFixed(2)}</p>
+                <p><strong>Screen:</strong> ${screenNo}</p>
+                <p><strong>Row:</strong> ${rowNo}</p>
+                <p><strong>Seat:</strong> ${seatNo}</p>
+                <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
             </div>
         `;
     });

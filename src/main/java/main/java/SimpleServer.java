@@ -227,50 +227,89 @@ public class SimpleServer {
                 ticketsJson.append("[");
                 boolean first = true;
                 
+                System.out.println("Generating " + numSeats + " tickets...");
+                
                 for (int i = 0; i < numSeats; i++) {
-                    // Find available seat
-                    PreparedStatement seatStmt = conn.prepareStatement(
-                        "SELECT s.RowNo, s.SeatNo, s.ScreenNo " +
-                        "FROM (SELECT 1 AS RowNo, num AS SeatNo, 1 AS ScreenNo " +
-                        "      FROM (SELECT @row := @row + 1 AS num " +
-                        "            FROM (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) t1, " +
-                        "                 (SELECT 0 UNION ALL SELECT 1 UNION ALL SELECT 2 UNION ALL SELECT 3 UNION ALL SELECT 4) t2, " +
-                        "                 (SELECT @row := 0) t3) numbers " +
-                        "      WHERE num <= 100) s " +
-                        "LEFT JOIN tickets t ON s.RowNo = t.RowNo AND s.SeatNo = t.SeatNo AND s.ScreenNo = t.ScreenNo " +
-                        "WHERE t.TicketID IS NULL " +
-                        "LIMIT 1"
-                    );
-                    ResultSet seatRs = seatStmt.executeQuery();
+                    // Find an available seat by checking if it's already booked
+                    boolean seatFound = false;
+                    int rowNo = 0, seatNo = 0, screenNo = 0;
+                    double price = 200.00; // Default price
                     
-                    if (seatRs.next()) {
-                        int rowNo = seatRs.getInt("RowNo");
-                        int seatNo = seatRs.getInt("SeatNo");
-                        int screenNo = seatRs.getInt("ScreenNo");
-                        
-                        PreparedStatement ticketStmt = conn.prepareStatement(
-                            "INSERT INTO tickets (SeatNo, RowNo, ScreenNo, ReservationID) VALUES (?, ?, ?, ?)",
-                            PreparedStatement.RETURN_GENERATED_KEYS
-                        );
-                        ticketStmt.setInt(1, seatNo);
-                        ticketStmt.setInt(2, rowNo);
-                        ticketStmt.setInt(3, screenNo);
-                        ticketStmt.setInt(4, reservationId);
-                        ticketStmt.executeUpdate();
-                        
-                        if (!first) {
-                            ticketsJson.append(",");
+                    // Try to find an available seat
+                    for (int row = 1; row <= 5 && !seatFound; row++) {
+                        for (int seat = 1; seat <= 20 && !seatFound; seat++) {
+                            // Check if this seat is already booked
+                            PreparedStatement checkSeatStmt = conn.prepareStatement(
+                                "SELECT COUNT(*) FROM tickets WHERE RowNo = ? AND SeatNo = ? AND ScreenNo = ?"
+                            );
+                            checkSeatStmt.setInt(1, row);
+                            checkSeatStmt.setInt(2, seat);
+                            checkSeatStmt.setInt(3, 1); // Screen 1
+                            ResultSet checkRs = checkSeatStmt.executeQuery();
+                            
+                            if (checkRs.next() && checkRs.getInt(1) == 0) {
+                                // Seat is available
+                                rowNo = row;
+                                seatNo = seat;
+                                screenNo = 1;
+                                seatFound = true;
+                            }
                         }
-                        ticketsJson.append("{")
-                            .append("\"rowNo\":").append(rowNo).append(",")
-                            .append("\"seatNo\":").append(seatNo).append(",")
-                            .append("\"screenNo\":").append(screenNo).append(",")
-                            .append("\"price\":200.00")
-                            .append("}");
-                        first = false;
                     }
+                    
+                    if (!seatFound) {
+                        System.err.println("No available seats found!");
+                        throw new SQLException("No available seats found");
+                    }
+                    
+                    System.out.println("Found available seat: Row=" + rowNo + ", Seat=" + seatNo + ", Screen=" + screenNo);
+                    
+                    // Create a new ticket
+                    PreparedStatement ticketStmt = conn.prepareStatement(
+                        "INSERT INTO tickets (SeatNo, RowNo, ScreenNo, ReservationID, Price) VALUES (?, ?, ?, ?, ?)",
+                        PreparedStatement.RETURN_GENERATED_KEYS
+                    );
+                    
+                    ticketStmt.setInt(1, seatNo);
+                    ticketStmt.setInt(2, rowNo);
+                    ticketStmt.setInt(3, screenNo);
+                    ticketStmt.setInt(4, reservationId);
+                    ticketStmt.setDouble(5, price);
+                    ticketStmt.executeUpdate();
+                    
+                    // Get the ticket ID
+                    ResultSet ticketRs = ticketStmt.getGeneratedKeys();
+                    int ticketId = 0;
+                    if (ticketRs.next()) {
+                        ticketId = ticketRs.getInt(1);
+                    }
+                    
+                    // Get the actual price
+                    PreparedStatement priceStmt = conn.prepareStatement(
+                        "SELECT price FROM tickets WHERE TicketID = ?"
+                    );
+                    priceStmt.setInt(1, ticketId);
+                    ResultSet priceRs = priceStmt.executeQuery();
+                    if (priceRs.next()) {
+                        price = priceRs.getDouble("price");
+                    }
+                    
+                    System.out.println("Ticket created: Row=" + rowNo + ", Seat=" + seatNo + ", Screen=" + screenNo + ", Price=" + price);
+                    
+                    if (!first) {
+                        ticketsJson.append(",");
+                    }
+                    ticketsJson.append("{")
+                        .append("\"rowNo\":").append(rowNo).append(",")
+                        .append("\"seatNo\":").append(seatNo).append(",")
+                        .append("\"screenNo\":").append(screenNo).append(",")
+                        .append("\"price\":").append(price)
+                        .append("}");
+                    first = false;
                 }
                 ticketsJson.append("]");
+                
+                System.out.println("Tickets JSON: " + ticketsJson.toString());
                 
                 conn.commit();
                 
@@ -281,8 +320,10 @@ public class SimpleServer {
                     reservationId,
                     SimpleServer.escapeJson(movieTitle),
                     ticketsJson.toString(),
-                    java.time.LocalDateTime.now().toString()
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
                 );
+                
+                System.out.println("Final response: " + successResponse);
                 
                 SimpleServer.sendJsonResponse(exchange, 200, successResponse);
                 
