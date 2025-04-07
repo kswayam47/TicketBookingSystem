@@ -1,17 +1,20 @@
 :root {
-    --primary-color: #2a5298;
-    --secondary-color: #1e3c72;
-    --text-color: #333;
-    --bg-color: #f5f7fa;
+    --primary-color: #1e3c72;
+    --secondary-color: #2a5298;
+    --accent-color: #2ecc71;
+    --danger-color: #e74c3c;
+    --text-color: #2c3e50;
+    --bg-color: #f8f9fa;
     --card-bg: #ffffff;
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    --border-radius: 12px;
 }
 
 * {
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    font-family: 'Poppins', sans-serif;
 }
 
 body {
@@ -48,33 +51,89 @@ header h1 {
 
 .movie-container {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 25px;
-    padding: 20px 0;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 30px;
+    padding: 30px 0;
 }
 
 .movie-card {
     background: var(--card-bg);
-    border-radius: 15px;
-    padding: 20px;
+    border-radius: var(--border-radius);
+    padding: 25px;
     box-shadow: var(--shadow);
     transition: transform 0.3s ease, box-shadow 0.3s ease;
+    position: relative;
+    overflow: hidden;
+}
+
+.movie-card::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
 }
 
 .movie-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
 }
 
 .movie-info h3 {
     color: var(--primary-color);
     margin-bottom: 15px;
     font-size: 1.4em;
+    font-weight: 600;
 }
 
 .movie-info p {
-    margin-bottom: 10px;
+    margin-bottom: 12px;
     color: #666;
+    font-size: 0.95em;
+}
+
+.movie-info strong {
+    color: var(--text-color);
+    font-weight: 500;
+}
+
+.submit-btn {
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    color: white;
+    border: none;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 15px;
+    font-size: 1rem;
+}
+
+.submit-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+}
+
+.cancel-btn {
+    background: #f8f9fa;
+    color: var(--text-color);
+    border: 1px solid #dee2e6;
+    padding: 12px 24px;
+    border-radius: 25px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    width: 100%;
+    margin-top: 10px;
+}
+
+.cancel-btn:hover {
+    background: #e9ecef;
+    transform: translateY(-2px);
 }
 
 .booking-form {
@@ -82,7 +141,7 @@ header h1 {
     margin: 30px auto;
     padding: 30px;
     background: var(--card-bg);
-    border-radius: 15px;
+    border-radius: var(--border-radius);
     box-shadow: var(--shadow);
 }
 
@@ -104,41 +163,14 @@ header h1 {
     border: 2px solid #e1e1e1;
     border-radius: 8px;
     font-size: 16px;
-    transition: border-color 0.3s ease;
+    transition: all 0.3s ease;
 }
 
 .form-group input:focus,
 .form-group select:focus {
     border-color: var(--primary-color);
     outline: none;
-}
-
-button {
-    padding: 12px 24px;
-    border: none;
-    border-radius: 8px;
-    font-size: 16px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.3s ease;
-}
-
-.submit-btn {
-    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
-    color: white;
-    width: 100%;
-    margin-bottom: 10px;
-}
-
-.cancel-btn {
-    background: #f1f1f1;
-    color: #666;
-    width: 100%;
-}
-
-button:hover {
-    opacity: 0.9;
-    transform: translateY(-2px);
+    box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
 }
 
 .notification {
@@ -146,18 +178,23 @@ button:hover {
     bottom: 20px;
     right: 20px;
     padding: 15px 25px;
-    border-radius: 4px;
-    display: none;
-    z-index: 1000;
-    animation: slideIn 0.3s ease-out;
+    border-radius: var(--border-radius);
+    background: var(--accent-color);
+    color: white;
+    font-weight: 500;
+    box-shadow: var(--shadow);
+    transform: translateY(100px);
+    opacity: 0;
+    transition: all 0.3s ease;
 }
 
 .notification.show {
-    display: block;
+    transform: translateY(0);
+    opacity: 1;
 }
 
 .notification.error {
-    background-color: #f44336;
+    background: var(--danger-color);
 }
 
 footer {
@@ -183,11 +220,16 @@ footer {
     
     .movie-container {
         grid-template-columns: 1fr;
+        gap: 20px;
     }
     
     .booking-form {
         margin: 20px 10px;
         padding: 20px;
+    }
+    
+    section h2 {
+        font-size: 1.5em;
     }
 }
 
@@ -469,4 +511,24 @@ footer {
 
 .ticket-seats::-webkit-scrollbar-thumb:hover {
     background: #555;
+}
+
+/* Section Headers */
+section h2 {
+    color: var(--primary-color);
+    font-size: 2em;
+    font-weight: 600;
+    margin: 40px 0 20px;
+    text-align: center;
+    position: relative;
+}
+
+section h2::after {
+    content: '';
+    display: block;
+    width: 60px;
+    height: 4px;
+    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    margin: 10px auto;
+    border-radius: 2px;
 }

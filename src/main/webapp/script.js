@@ -6,33 +6,31 @@ document.addEventListener('DOMContentLoaded', function() {
 
 function setupUserProfile() {
     const user = JSON.parse(localStorage.getItem('user'));
-    const header = document.querySelector('header');
+    const userProfile = document.querySelector('.user-profile');
+    const authButtons = document.querySelector('.auth-buttons');
+    const userNameSpan = document.querySelector('.user-name');
     
     if (user) {
-        // Create user profile element
-        const userProfile = document.createElement('div');
-        userProfile.className = 'user-profile';
-        userProfile.innerHTML = `
-            <span>Welcome, ${user.name}</span>
-            <button id="logoutBtn">Logout</button>
-        `;
-        
-        // Add to header
-        header.appendChild(userProfile);
+        // Show user profile and hide auth buttons
+        userProfile.classList.add('show');
+        authButtons.classList.remove('show');
+        userNameSpan.textContent = user.name;
         
         // Add logout functionality
-        document.getElementById('logoutBtn').addEventListener('click', function() {
+        document.querySelector('.logout-btn').addEventListener('click', function() {
             localStorage.removeItem('user');
             window.location.reload();
         });
+
+        // Add profile button functionality
+        document.querySelector('.profile-btn').addEventListener('click', function() {
+            // You can implement profile page navigation here
+            alert('Profile feature coming soon!');
+        });
     } else {
-        // Create login link
-        const loginLink = document.createElement('div');
-        loginLink.className = 'login-link';
-        loginLink.innerHTML = `<a href="login.html">Login / Sign Up</a>`;
-        
-        // Add to header
-        header.appendChild(loginLink);
+        // Hide user profile and show auth buttons
+        userProfile.classList.remove('show');
+        authButtons.classList.add('show');
     }
 }
 
