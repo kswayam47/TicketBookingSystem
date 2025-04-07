@@ -233,13 +233,30 @@ function showTicketDetails(ticketData) {
         return;
     }
     
+    // Get show timing information from the form dataset
+    const ticketForm = document.getElementById('ticketForm');
+    const showTime = ticketForm.dataset.showTime || 'N/A';
+    const showDate = ticketForm.dataset.showDate ? new Date(ticketForm.dataset.showDate).toLocaleDateString() : 'N/A';
+    const screenNo = ticketForm.dataset.screenNo || 'N/A';
+    
     let ticketHtml = `
-        <h3>Your Tickets</h3>
-        <p><strong>Movie:</strong> ${escapeHtml(ticketData.movieTitle)}</p>
-        <p><strong>Date & Time:</strong> ${formatDate(ticketData.dateTime)}</p>
-        <p><strong>Total Seats:</strong> ${ticketData.tickets.length}</p>
-        <h4>Seat Details:</h4>
-        <div class="ticket-seats">
+        <div class="ticket-header">
+            <h2>Movie Ticket</h2>
+            <div class="ticket-qr">🎬</div>
+        </div>
+        <div class="ticket-body">
+            <div class="movie-info">
+                <h3>${escapeHtml(ticketData.movieTitle)}</h3>
+                <div class="show-details">
+                    <p><i class="icon-calendar"></i> <strong>Date:</strong> ${showDate}</p>
+                    <p><i class="icon-time"></i> <strong>Time:</strong> ${showTime}</p>
+                    <p><i class="icon-screen"></i> <strong>Screen:</strong> ${screenNo}</p>
+                </div>
+            </div>
+            <div class="ticket-divider"></div>
+            <div class="seat-details">
+                <h4>Seat Details</h4>
+                <div class="ticket-seats">
     `;
     
     let totalAmount = 0;
@@ -261,18 +278,22 @@ function showTicketDetails(ticketData) {
         
         ticketHtml += `
             <div class="seat-info">
-                <p><strong>Screen:</strong> ${screenNo}</p>
-                <p><strong>Row:</strong> ${rowNo}</p>
-                <p><strong>Seat:</strong> ${seatNo}</p>
-                <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
+                <div class="seat-number">Row ${rowNo}, Seat ${seatNo}</div>
+                <div class="seat-price">₹${price.toFixed(2)}</div>
             </div>
         `;
     });
     
     ticketHtml += `
-        </div>
-        <div class="ticket-total">
-            <p><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
+                </div>
+                <div class="ticket-total">
+                    <p><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
+                </div>
+            </div>
+            <div class="ticket-footer">
+                <p class="booking-id">Booking ID: ${ticketData.reservationId}</p>
+                <p class="booking-date">Booked on: ${new Date().toLocaleDateString()}</p>
+            </div>
         </div>
         <div class="ticket-actions">
             <button onclick="showSnackForm(${ticketData.reservationId})" class="submit-btn">Order Snacks</button>
@@ -497,15 +518,31 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     // Debug log to check ticket data
     console.log('Final Receipt Ticket Data:', ticketData);
     
+    // Get show timing information from the form dataset
+    const ticketForm = document.getElementById('ticketForm');
+    const showTime = ticketForm.dataset.showTime || 'N/A';
+    const showDate = ticketForm.dataset.showDate ? new Date(ticketForm.dataset.showDate).toLocaleDateString() : 'N/A';
+    const screenNo = ticketForm.dataset.screenNo || 'N/A';
+    const movieName = ticketForm.dataset.movieName || ticketData.movieTitle || 'N/A';
+    
     let receiptHtml = `
-        <h2>Final Receipt</h2>
-        <div class="ticket-section">
-            <h3>Movie Ticket Details</h3>
-            <p><strong>Movie:</strong> ${escapeHtml(ticketData.movieTitle)}</p>
-            <p><strong>Date & Time:</strong> ${formatDate(ticketData.dateTime)}</p>
-            <p><strong>Total Seats:</strong> ${ticketData.tickets.length}</p>
-            <h4>Seat Details:</h4>
-            <div class="ticket-seats">
+        <div class="ticket-container">
+            <div class="ticket-header">
+                <h2>Movie Ticket</h2>
+            </div>
+            <div class="ticket-body">
+                <div class="movie-info">
+                    <h3>${escapeHtml(movieName)}</h3>
+                    <div class="show-details">
+                        <p><i class="icon-calendar"></i> <strong>Date:</strong> ${showDate}</p>
+                        <p><i class="icon-time"></i> <strong>Time:</strong> ${showTime}</p>
+                        <p><i class="icon-screen"></i> <strong>Screen:</strong> ${screenNo}</p>
+                    </div>
+                </div>
+                <div class="ticket-divider"></div>
+                <div class="seat-details">
+                    <h4>Seat Details</h4>
+                    <div class="ticket-seats">
     `;
     
     let ticketTotal = 0;
@@ -522,27 +559,27 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
         ticketTotal += price;
         receiptHtml += `
             <div class="seat-info">
-                <p><strong>Screen:</strong> ${screenNo}</p>
-                <p><strong>Row:</strong> ${rowNo}</p>
-                <p><strong>Seat:</strong> ${seatNo}</p>
-                <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
+                <div class="seat-number">Row ${rowNo}, Seat ${seatNo}</div>
+                <div class="seat-price">₹${price.toFixed(2)}</div>
             </div>
         `;
     });
     
     receiptHtml += `
-        </div>
-        <div class="ticket-total">
-            <p><strong>Total Amount:</strong> ₹${ticketTotal.toFixed(2)}</p>
-        </div>
+                    </div>
+                    <div class="ticket-total">
+                        <p><strong>Total Amount:</strong> ₹${ticketTotal.toFixed(2)}</p>
+                    </div>
+                </div>
     `;
     
     // Add snack order details if available
     if (snackOrderDetails && snackOrderDetails.orders && snackOrderDetails.orders.length > 0) {
         receiptHtml += `
-            <div class="snack-section">
-                <h3>Snack Order Details</h3>
-                <div class="snack-orders">
+                <div class="ticket-divider"></div>
+                <div class="snack-section">
+                    <h4>Snack Order Details</h4>
+                    <div class="snack-orders">
         `;
         
         let snackTotal = 0;
@@ -562,20 +599,26 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
         });
         
         receiptHtml += `
+                    </div>
+                    <div class="snack-total">
+                        <p><strong>Total Snack Amount:</strong> ₹${snackTotal.toFixed(2)}</p>
+                    </div>
+                    <div class="grand-total">
+                        <p><strong>Grand Total:</strong> ₹${(ticketTotal + snackTotal).toFixed(2)}</p>
+                    </div>
                 </div>
-                <div class="snack-total">
-                    <p><strong>Total Snack Amount:</strong> ₹${snackTotal.toFixed(2)}</p>
-                </div>
-                <div class="grand-total">
-                    <p><strong>Grand Total:</strong> ₹${(ticketTotal + snackTotal).toFixed(2)}</p>
-                </div>
-            </div>
         `;
     }
     
     receiptHtml += `
-        <div class="ticket-actions">
-            <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
+                <div class="ticket-footer">
+                    <p class="booking-id">Booking ID: ${ticketData.reservationId}</p>
+                    <p class="booking-date">Booked on: ${new Date().toLocaleDateString()}</p>
+                </div>
+            </div>
+            <div class="ticket-actions">
+                <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
+            </div>
         </div>
     `;
     
