@@ -82,10 +82,23 @@ function loadMovies() {
                 return;
             }
             
-            data.forEach(movie => {
-                const movieCard = createMovieCard(movie);
-                movieContainer.appendChild(movieCard);
-            });
+            // Create a map to ensure uniqueness by movie ID
+            const processedMovieIds = new Set();
+            
+            // First display trending movies
+            data.filter(movie => movie.trending)
+                .forEach(movie => {
+                    const movieCard = createMovieCard(movie);
+                    movieContainer.appendChild(movieCard);
+                    processedMovieIds.add(movie.id);
+                });
+            
+            // Then display non-trending movies
+            data.filter(movie => !movie.trending && !processedMovieIds.has(movie.id))
+                .forEach(movie => {
+                    const movieCard = createMovieCard(movie);
+                    movieContainer.appendChild(movieCard);
+                });
         })
         .catch(error => {
             console.error('Error loading movies:', error);
@@ -112,10 +125,23 @@ function loadSnacks() {
             
             snackContainer.innerHTML = '';
             
-            snacks.forEach(snack => {
-                const snackItem = createSnackItem(snack);
-                snackContainer.appendChild(snackItem);
-            });
+            // Create a map to ensure uniqueness by snack ID
+            const processedSnackIds = new Set();
+            
+            // First display trending snacks
+            snacks.filter(snack => snack.trending)
+                .forEach(snack => {
+                    const snackItem = createSnackItem(snack);
+                    snackContainer.appendChild(snackItem);
+                    processedSnackIds.add(snack.id);
+                });
+            
+            // Then display non-trending snacks
+            snacks.filter(snack => !snack.trending && !processedSnackIds.has(snack.id))
+                .forEach(snack => {
+                    const snackItem = createSnackItem(snack);
+                    snackContainer.appendChild(snackItem);
+                });
         })
         .catch(error => {
             console.error('Error loading snacks:', error);
@@ -322,7 +348,7 @@ function showTicketDetails(ticketData) {
                 <div class="ticket-divider"></div>
                 <div class="seat-details">
                     <h4>Seat Details</h4>
-                    <div class="ticket-seats">
+        <div class="ticket-seats">
     `;
     
     let totalAmount = 0;
@@ -351,8 +377,8 @@ function showTicketDetails(ticketData) {
     });
     
     ticketHtml += `
-                </div>
-                <div class="ticket-total">
+        </div>
+        <div class="ticket-total">
                     <p><strong>Total Amount:</strong> ₹${totalAmount.toFixed(2)}</p>
                 </div>
             </div>
@@ -663,7 +689,7 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
                 <div class="ticket-divider"></div>
                 <div class="seat-details">
                     <h4>Seat Details</h4>
-                    <div class="ticket-seats">
+            <div class="ticket-seats">
     `;
     
     let ticketTotal = 0;
@@ -687,24 +713,24 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     });
     
     receiptHtml += `
-                    </div>
-                    <div class="ticket-total">
+        </div>
+        <div class="ticket-total">
                         <p><strong>Total Amount:</strong> ₹${ticketTotal.toFixed(2)}</p>
                     </div>
-                </div>
+        </div>
     `;
     
     // Add snack order details if available
     if (snackOrderDetails && snackOrderDetails.orders && snackOrderDetails.orders.length > 0) {
-        receiptHtml += `
+    receiptHtml += `
                 <div class="ticket-divider"></div>
-                <div class="snack-section">
+        <div class="snack-section">
                     <h4>Snack Order Details</h4>
                     <div class="snack-orders">
-        `;
-        
-        let snackTotal = 0;
-        snackOrderDetails.orders.forEach(order => {
+    `;
+    
+    let snackTotal = 0;
+    snackOrderDetails.orders.forEach(order => {
             // Use details directly from response if available, otherwise look up in window.snacksData
             const itemName = order.itemName || (window.snacksData && 
                 window.snacksData.find(s => s.id === order.snackId)?.itemName) || 'Unknown';
@@ -722,11 +748,11 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
                     <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)} × ${quantity} = ₹${totalPrice.toFixed(2)}</p>
                 </div>
             `;
-        });
-        
-        receiptHtml += `
-                    </div>
-                    <div class="snack-total">
+    });
+    
+    receiptHtml += `
+            </div>
+            <div class="snack-total">
                         <p><strong>Total Snack Amount:</strong> ₹${snackTotal.toFixed(2)}</p>
                     </div>
                     <div class="grand-total">
@@ -753,7 +779,7 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     ticketModal.style.display = 'none'; // Reset display
     requestAnimationFrame(() => {
         ticketModal.classList.add('show');
-        ticketModal.style.display = 'flex';
+    ticketModal.style.display = 'flex';
     });
 }
 
