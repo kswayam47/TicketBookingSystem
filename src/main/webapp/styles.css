@@ -1,13 +1,14 @@
 :root {
-    --primary-color: #1e3c72;
-    --secondary-color: #2a5298;
-    --accent-color: #2ecc71;
-    --danger-color: #e74c3c;
-    --text-color: #2c3e50;
-    --bg-color: #f8f9fa;
-    --card-bg: #ffffff;
+    --primary-color: #1e88e5;   /* Vibrant blue */
+    --secondary-color: #ff3d00; /* Vibrant orange */
+    --accent-color: #43a047;    /* Green */
+    --danger-color: #e53935;    /* Red */
+    --text-color: #212121;      /* Dark gray for text */
+    --light-text: #fafafa;      /* Almost white for text on dark bg */
+    --bg-color: #f5f5f5;        /* Light gray background */
+    --card-bg: #ffffff;         /* White for cards */
     --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-    --border-radius: 12px;
+    --border-radius: 8px;
 }
 
 * {
@@ -21,27 +22,227 @@ body {
     background-color: var(--bg-color);
     color: var(--text-color);
     line-height: 1.6;
-}
-
-.container {
-    max-width: 1200px;
-    margin: 0 auto;
-    padding: 20px;
+    overflow-x: hidden;
 }
 
 header {
-    background: linear-gradient(135deg, var(--secondary-color) 0%, var(--primary-color) 100%);
-    color: white;
-    padding: 40px 20px;
-    text-align: center;
-    border-radius: 15px;
-    margin-bottom: 30px;
-    box-shadow: var(--shadow);
+    background: linear-gradient(to right, #4a1967, #7e2480, #be3a7c, #ea5c86);
+    width: 100%;
+    padding: 0.75rem 2rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 1rem;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
 }
 
-header h1 {
-    font-size: 2.5em;
-    margin-bottom: 10px;
+.brand {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.brand i {
+    font-size: 2rem;
+    color: white;
+}
+
+.brand-name {
+    font-size: 2rem;
+    font-weight: 700;
+    color: white;
+    text-decoration: none;
+    letter-spacing: -0.5px;
+}
+
+.search-box {
+    flex: 1;
+    max-width: 400px;
+    position: relative;
+}
+
+.search-box input {
+    width: 100%;
+    padding: 0.8rem 1rem 0.8rem 2.5rem;
+    border: none;
+    border-radius: 30px;
+    background: rgba(255, 255, 255, 0.25);
+    color: white;
+    font-size: 0.9rem;
+    transition: all 0.3s ease;
+}
+
+.search-box input::placeholder {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.search-box i {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    color: rgba(255, 255, 255, 0.7);
+}
+
+.search-box input:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.3);
+    box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.1);
+}
+
+.location-select {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    background: rgba(255, 255, 255, 0.15);
+    padding: 0.5rem 1rem;
+    border-radius: 30px;
+    cursor: pointer;
+}
+
+.location-select i {
+    color: white;
+}
+
+.location-select select {
+    border: none;
+    background: none;
+    color: white;
+    font-size: 0.9rem;
+    cursor: pointer;
+    outline: none;
+    padding-right: 1rem;
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+.location-select select option {
+    background: #3a1c71;
+    color: white;
+}
+
+.auth-section {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-profile {
+    display: none;
+    align-items: center;
+    gap: 1rem;
+}
+
+.user-profile.show {
+    display: flex;
+}
+
+.user-name {
+    color: white;
+    font-weight: 500;
+}
+
+.profile-btn,
+.logout-btn,
+.login-btn,
+.signup-btn {
+    padding: 0.5rem 1.5rem;
+    border-radius: 30px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.profile-btn {
+    background-color: var(--accent-color);
+    color: white;
+    border: none;
+}
+
+.logout-btn {
+    background-color: var(--danger-color);
+    color: white;
+    border: none;
+}
+
+.auth-buttons {
+    display: none;
+    gap: 1rem;
+}
+
+.auth-buttons.show {
+    display: flex;
+}
+
+.login-btn {
+    background: transparent;
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    color: white;
+    text-decoration: none;
+}
+
+.signup-btn {
+    background: white;
+    color: #4a1967;
+    border: none;
+    text-decoration: none;
+}
+
+.profile-btn:hover,
+.login-btn:hover {
+    background: rgba(255, 255, 255, 0.3);
+    transform: translateY(-2px);
+}
+
+.logout-btn:hover {
+    background: #c62828;
+    transform: translateY(-2px);
+}
+
+.signup-btn:hover {
+    background: #f0f0f0;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+}
+
+.container {
+    max-width: 1400px;
+    margin: 0 auto;
+    padding: 2rem;
+}
+
+@media (max-width: 992px) {
+    header {
+        padding: 0.75rem 1rem;
+    }
+    
+    .brand-name {
+        font-size: 1.5rem;
+    }
+    
+    .search-box {
+        max-width: 300px;
+    }
+}
+
+@media (max-width: 768px) {
+    header {
+        flex-direction: column;
+        padding: 1rem;
+        gap: 1rem;
+    }
+    
+    .search-box {
+        max-width: 100%;
+        width: 100%;
+    }
+    
+    .auth-section {
+        width: 100%;
+        justify-content: center;
+    }
 }
 
 .subtitle {
@@ -57,82 +258,74 @@ header h1 {
 }
 
 .movie-card {
-    background: var(--card-bg);
-    border-radius: var(--border-radius);
-    padding: 25px;
-    box-shadow: var(--shadow);
-    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background-color: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    padding: 20px;
+    transition: all 0.3s ease;
     position: relative;
     overflow: hidden;
-}
-
-.movie-card::before {
-    content: '';
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    height: 4px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
 
 .movie-card:hover {
     transform: translateY(-5px);
-    box-shadow: 0 8px 15px rgba(0, 0, 0, 0.15);
+    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
 }
 
-.movie-info h3 {
-    color: var(--primary-color);
-    margin-bottom: 15px;
-    font-size: 1.4em;
+.movie-card h3 {
+    color: #7e2480; /* Purple from the gradient */
+    font-size: 24px;
     font-weight: 600;
+    margin-bottom: 15px;
 }
 
 .movie-info p {
-    margin-bottom: 12px;
+    margin-bottom: 8px;
     color: #666;
     font-size: 0.95em;
 }
 
-.movie-info strong {
-    color: var(--text-color);
-    font-weight: 500;
+.movie-info p strong {
+    font-weight: 600;
+    color: #333;
 }
 
 .submit-btn {
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background-color: var(--secondary-color);
     color: white;
     border: none;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-weight: 500;
+    padding: 10px 25px;
+    border-radius: 30px;
     cursor: pointer;
+    font-weight: 600;
     transition: all 0.3s ease;
-    width: 100%;
-    margin-top: 15px;
-    font-size: 1rem;
+    box-shadow: var(--shadow);
+    margin-right: 10px;
 }
 
 .submit-btn:hover {
+    background-color: var(--danger-color);
     transform: translateY(-2px);
-    box-shadow: 0 5px 15px rgba(46, 204, 113, 0.3);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
 }
 
 .cancel-btn {
-    background: #f8f9fa;
+    background-color: transparent;
     color: var(--text-color);
-    border: 1px solid #dee2e6;
-    padding: 12px 24px;
-    border-radius: 25px;
-    font-weight: 500;
+    border: 1px solid #ddd;
+    padding: 10px 25px;
+    border-radius: 30px;
     cursor: pointer;
+    font-weight: 600;
     transition: all 0.3s ease;
-    width: 100%;
-    margin-top: 10px;
 }
 
 .cancel-btn:hover {
-    background: #e9ecef;
+    background-color: #f0f0f0;
+    border-color: #bbb;
     transform: translateY(-2px);
 }
 
@@ -159,18 +352,18 @@ header h1 {
 .form-group input,
 .form-group select {
     width: 100%;
-    padding: 12px;
-    border: 2px solid #e1e1e1;
-    border-radius: 8px;
+    padding: 12px 15px;
+    border: 1px solid #ddd;
+    border-radius: 30px;
     font-size: 16px;
-    transition: all 0.3s ease;
+    transition: border 0.3s;
 }
 
 .form-group input:focus,
 .form-group select:focus {
     border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
     outline: none;
-    box-shadow: 0 0 0 3px rgba(30, 60, 114, 0.1);
 }
 
 .notification {
@@ -525,7 +718,7 @@ footer {
 
 /* Section Headers */
 section h2 {
-    color: var(--primary-color);
+    color: #7e2480;
     font-size: 2em;
     font-weight: 600;
     margin: 40px 0 20px;
@@ -538,29 +731,30 @@ section h2::after {
     display: block;
     width: 60px;
     height: 4px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, #7e2480, #be3a7c);
     margin: 10px auto;
     border-radius: 2px;
 }
 
 /* Show Timings Styles */
 .show-times-btn {
-    background: var(--primary-color);
+    background: linear-gradient(to right, #7e2480, #be3a7c); /* Using middle colors from the gradient */
     color: white;
     border: none;
-    padding: 10px 20px;
-    border-radius: 25px;
+    padding: 10px 0;
+    border-radius: 50px;
     cursor: pointer;
-    transition: all 0.3s ease;
-    margin-top: 15px;
-    width: 100%;
     font-weight: 500;
+    transition: all 0.3s ease;
+    margin-top: auto;
+    width: 100%;
+    text-align: center;
 }
 
 .show-times-btn:hover {
-    background: var(--secondary-color);
+    background: linear-gradient(to right, #4a1967, #7e2480); /* Darker gradient on hover */
     transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.15);
 }
 
 .show-timings-container {
@@ -573,7 +767,7 @@ section h2::after {
 }
 
 .show-timings-container h3 {
-    color: var(--primary-color);
+    color: #7e2480;
     text-align: center;
     margin-bottom: 25px;
     font-size: 24px;
@@ -587,20 +781,22 @@ section h2::after {
 }
 
 .show-time-btn {
-    background: white;
-    border: 2px solid var(--primary-color);
+    background-color: white;
+    border: 1px solid #be3a7c; /* Pink from the gradient */
     border-radius: 8px;
     padding: 15px;
     cursor: pointer;
     transition: all 0.3s ease;
     text-align: center;
+    box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .show-time-btn:hover {
-    background: var(--primary-color);
+    background: linear-gradient(to right, #7e2480, #be3a7c); /* Using the gradient on hover */
     color: white;
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    border-color: transparent;
+    transform: translateY(-3px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
 }
 
 .show-time-btn:hover .show-time,
@@ -615,9 +811,10 @@ section h2::after {
 }
 
 .show-time {
-    color: var(--primary-color);
+    color: #7e2480; /* Purple from the gradient */
     font-size: 1.2em;
     margin: 5px 0;
+    font-weight: 600;
 }
 
 .screen-info,
@@ -667,7 +864,7 @@ section h2::after {
 .screen {
     width: 100%;
     height: 10px;
-    background: var(--primary-color);
+    background: #7e2480;
     margin: 2rem 0;
     position: relative;
     border-radius: 5px;
@@ -702,7 +899,7 @@ section h2::after {
     border-radius: 5px;
     cursor: pointer;
     transition: all 0.3s ease;
-    border: 2px solid var(--primary-color);
+    border: 2px solid #7e2480;
 }
 
 .seat.available {
@@ -716,7 +913,7 @@ section h2::after {
 }
 
 .seat.selected {
-    background: var(--primary-color);
+    background: #7e2480;
 }
 
 .seat-info {
@@ -786,7 +983,7 @@ section h2::after {
     justify-content: center;
     align-items: center;
     padding: 20px;
-    background: linear-gradient(135deg, var(--primary-color), var(--secondary-color));
+    background: linear-gradient(135deg, #4a1967, #be3a7c);
     color: white;
     border-bottom: 2px dashed rgba(255, 255, 255, 0.3);
 }
@@ -807,7 +1004,7 @@ section h2::after {
 }
 
 .movie-info h3 {
-    color: var(--primary-color);
+    color: #7e2480;
     font-size: 1.5em;
     margin-bottom: 15px;
     border-bottom: 1px solid #eee;
@@ -834,7 +1031,7 @@ section h2::after {
 
 .show-details i {
     margin-right: 8px;
-    color: var(--primary-color);
+    color: #7e2480;
     font-size: 1.2em;
 }
 
@@ -849,7 +1046,7 @@ section h2::after {
 }
 
 .seat-details h4 {
-    color: var(--primary-color);
+    color: #7e2480;
     margin-bottom: 15px;
     font-size: 1.2em;
     border-bottom: 1px solid #eee;
@@ -886,7 +1083,7 @@ section h2::after {
 
 .seat-price {
     font-weight: 600;
-    color: var(--primary-color);
+    color: #7e2480;
 }
 
 .ticket-total {
@@ -909,7 +1106,7 @@ section h2::after {
 }
 
 .snack-section h4 {
-    color: var(--primary-color);
+    color: #7e2480;
     margin-bottom: 15px;
     font-size: 1.2em;
     border-bottom: 1px solid #eee;
@@ -942,7 +1139,7 @@ section h2::after {
 
 .snack-info .price {
     font-weight: 600;
-    color: var(--primary-color);
+    color: #7e2480;
     margin-top: 10px;
 }
 
@@ -965,7 +1162,7 @@ section h2::after {
 .grand-total p {
     font-size: 1.2em;
     margin: 0;
-    color: var(--primary-color);
+    color: #7e2480;
 }
 
 .ticket-footer {
@@ -1012,4 +1209,152 @@ section h2::after {
 
 .ticket-container {
     animation: ticketAppear 0.5s ease-out forwards;
+}
+
+/* Hero Section and Slideshow */
+.hero-section {
+    width: 100%;
+    margin-bottom: 2.5rem;
+    overflow: hidden;
+    border-radius: 12px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.15);
+}
+
+.hero-slider {
+    width: 100%;
+    height: 500px; /* Reduced height */
+}
+
+.swiper-slide {
+    position: relative;
+    overflow: hidden;
+}
+
+.swiper-slide img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    transition: transform 3s ease;
+}
+
+.swiper-slide-active img {
+    transform: scale(1.05);
+}
+
+/* Slide Overlay */
+.slide-overlay {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    padding: 2rem;
+    background: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent);
+    color: white;
+    text-align: center;
+}
+
+.slide-overlay p {
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+    font-weight: 300;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+    opacity: 0.9;
+}
+
+.book-now-btn {
+    background: var(--secondary-color);
+    color: white;
+    border: none;
+    padding: 0.7rem 1.8rem;
+    border-radius: 30px;
+    font-size: 1rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+}
+
+.book-now-btn:hover {
+    background: var(--danger-color);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.4);
+}
+
+/* Pagination dots */
+.swiper-pagination {
+    bottom: 20px !important;
+}
+
+.swiper-pagination-bullet {
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 255, 0.7);
+    opacity: 1;
+}
+
+.swiper-pagination-bullet-active {
+    background-color: var(--secondary-color);
+}
+
+/* Media queries for responsive slideshow */
+@media (max-width: 992px) {
+    .hero-slider {
+        height: 400px;
+    }
+}
+
+@media (max-width: 768px) {
+    .hero-slider {
+        height: 350px;
+    }
+    
+    .slide-overlay p {
+        font-size: 1rem;
+    }
+}
+
+@media (max-width: 576px) {
+    .hero-slider {
+        height: 250px;
+    }
+    
+    .slide-overlay {
+        padding: 1rem;
+    }
+    
+    .book-now-btn {
+        padding: 0.5rem 1.2rem;
+        font-size: 0.9rem;
+    }
+}
+
+/* Movie List Section */
+.movie-list {
+    padding-top: 2rem;
+}
+
+.movie-list h2, h2.section-title {
+    color: #7e2480; /* Purple from the gradient */
+    font-size: 32px;
+    font-weight: 600;
+    margin-bottom: 30px;
+    position: relative;
+    display: inline-block;
+}
+
+.movie-list h2::after, h2.section-title::after {
+    content: '';
+    position: absolute;
+    bottom: -10px;
+    left: 0;
+    width: 60px;
+    height: 4px;
+    background: #ea5c86; /* Pink from the gradient */
+    border-radius: 2px;
+}
+
+/* Remove quick booking styles since we removed that section */
+.quick-booking {
+    display: none;
 }

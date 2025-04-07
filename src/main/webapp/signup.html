@@ -3,16 +3,36 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sign Up - Movie Ticket Booking System</title>
+    <title>Sign Up - CineMax</title>
     <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
+        :root {
+            --primary-color: #1e88e5;   /* Vibrant blue */
+            --secondary-color: #ff3d00; /* Vibrant orange */
+            --accent-color: #43a047;    /* Green */
+            --danger-color: #e53935;    /* Red */
+            --text-color: #212121;      /* Dark gray for text */
+            --light-text: #fafafa;      /* Almost white for text on dark bg */
+            --bg-color: #f5f5f5;        /* Light gray background */
+            --card-bg: #ffffff;         /* White for cards */
+            --shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+            --border-radius: 8px;
+        }
+        
+        body {
+            background-color: var(--bg-color);
+            font-family: 'Poppins', sans-serif;
+        }
+        
         .signup-container {
             max-width: 500px;
             margin: 50px auto;
             padding: 30px;
             background: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+            border-radius: var(--border-radius);
+            box-shadow: var(--shadow);
         }
         
         .signup-header {
@@ -21,8 +41,9 @@
         }
         
         .signup-header h2 {
-            color: #2a5298;
+            color: var(--primary-color);
             margin-bottom: 10px;
+            font-weight: 600;
         }
         
         .signup-form .form-group {
@@ -33,30 +54,42 @@
             display: block;
             margin-bottom: 8px;
             font-weight: 500;
+            color: var(--text-color);
         }
         
         .signup-form input, .signup-form select {
             width: 100%;
             padding: 12px;
             border: 1px solid #ddd;
-            border-radius: 5px;
+            border-radius: 30px;
             font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        
+        .signup-form input:focus, .signup-form select:focus {
+            border-color: var(--primary-color);
+            box-shadow: 0 0 0 3px rgba(30, 136, 229, 0.2);
+            outline: none;
         }
         
         .signup-form button {
             width: 100%;
             padding: 12px;
-            background: #2a5298;
+            background: var(--secondary-color);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 30px;
             font-size: 16px;
+            font-weight: 500;
             cursor: pointer;
-            transition: background 0.3s;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
         }
         
         .signup-form button:hover {
-            background: #1e3c72;
+            background: var(--danger-color);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
         }
         
         .signup-footer {
@@ -65,16 +98,17 @@
         }
         
         .signup-footer a {
-            color: #2a5298;
+            color: var(--primary-color);
             text-decoration: none;
+            font-weight: 500;
         }
         
         .signup-footer a:hover {
-            text-decoration: underline;
+            color: var(--secondary-color);
         }
         
         .error-message {
-            color: #e74c3c;
+            color: var(--danger-color);
             margin-bottom: 15px;
             text-align: center;
             display: none;
@@ -82,12 +116,36 @@
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <h1>Movie Ticket Booking System</h1>
-            <p class="subtitle">Book your favorite movies with ease</p>
-        </header>
+    <header>
+        <div class="brand">
+            <i class="fas fa-film"></i>
+            <a href="/" class="brand-name">CineMax</a>
+        </div>
+        
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search movies...">
+        </div>
+        
+        <div class="location-select">
+            <i class="fas fa-map-marker-alt"></i>
+            <select>
+                <option>Select City</option>
+                <option>Mumbai</option>
+                <option>Delhi</option>
+                <option>Bangalore</option>
+            </select>
+        </div>
+        
+        <div class="auth-section">
+            <div class="auth-buttons show">
+                <a href="login.html" class="login-btn">Login</a>
+                <a href="signup.html" class="signup-btn">Sign Up</a>
+            </div>
+        </div>
+    </header>
 
+    <div class="container">
         <main>
             <div class="signup-container">
                 <div class="signup-header">
@@ -133,7 +191,7 @@
         </main>
 
         <footer>
-            <p>&copy; 2025 Movie Ticket Booking System</p>
+            <p>&copy; 2025 CineMax Movie Booking</p>
         </footer>
     </div>
     <div id="notification" class="notification"></div>

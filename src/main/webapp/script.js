@@ -2,7 +2,35 @@ document.addEventListener('DOMContentLoaded', function() {
     loadMovies();
     loadSnacks();
     setupUserProfile();
+    initializeSlideshow();
 });
+
+function initializeSlideshow() {
+    // Initialize the slideshow with auto-rotation
+    new Swiper('.hero-slider', {
+        loop: true,
+        effect: 'fade',
+        speed: 1000,
+        autoplay: {
+            delay: 4000,
+            disableOnInteraction: false
+        },
+        pagination: {
+            el: '.swiper-pagination',
+            clickable: true
+        }
+    });
+    
+    // Add click event to all Book Now buttons in the slideshow
+    document.querySelectorAll('.book-now-btn').forEach(button => {
+        button.addEventListener('click', function() {
+            // Scroll to Now Showing section
+            document.querySelector('.movie-list').scrollIntoView({
+                behavior: 'smooth'
+            });
+        });
+    });
+}
 
 function setupUserProfile() {
     const user = JSON.parse(localStorage.getItem('user'));

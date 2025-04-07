@@ -3,9 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Movie Ticket Booking System</title>
+    <title>CineMax - Ultimate Movie Experience</title>
     <link rel="stylesheet" href="styles.css">
     <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -21,13 +23,13 @@
         }
 
         header {
-            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            background: linear-gradient(to right, #4a1967, #7e2480, #be3a7c, #ea5c86);
             color: white;
             padding: 1rem 2rem;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
             position: sticky;
             top: 0;
             z-index: 1000;
@@ -65,7 +67,7 @@
             display: none;
             align-items: center;
             gap: 1rem;
-            background: rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.15);
             padding: 0.5rem 1rem;
             border-radius: 50px;
             backdrop-filter: blur(10px);
@@ -126,13 +128,13 @@
         }
 
         .signup-btn {
-            background-color: #2ecc71;
+            background-color: white;
             border: none;
-            color: white;
+            color: #4a1967;
         }
 
         .signup-btn:hover {
-            background-color: #27ae60;
+            background-color: #f5f5f5;
             transform: translateY(-2px);
         }
 
@@ -151,31 +153,103 @@
             background-color: #c0392b;
             transform: translateY(-2px);
         }
+        
+        .search-box input {
+            background: rgba(255, 255, 255, 0.25);
+            border: none;
+            border-radius: 30px;
+            padding: 0.8rem 1rem 0.8rem 2.5rem;
+            color: white;
+            width: 100%;
+            font-size: 0.9rem;
+        }
+        
+        .search-box input::placeholder {
+            color: rgba(255, 255, 255, 0.7);
+        }
+        
+        .location-select {
+            background: rgba(255, 255, 255, 0.15);
+            border-radius: 30px;
+            padding: 0.5rem 1rem;
+        }
+        
+        .location-select select {
+            background: transparent;
+            border: none;
+            color: white;
+        }
     </style>
 </head>
 <body>
-    <div class="container">
-        <header>
-            <div class="header-left">
-                <h1>Movie Ticket Booking</h1>
+    <header>
+        <div class="brand">
+            <i class="fas fa-film"></i>
+            <a href="/" class="brand-name">CineMax</a>
+        </div>
+        
+        <div class="search-box">
+            <i class="fas fa-search"></i>
+            <input type="text" placeholder="Search movies...">
+        </div>
+        
+        <div class="location-select">
+            <i class="fas fa-map-marker-alt"></i>
+            <select>
+                <option>Select City</option>
+                <option>Mumbai</option>
+                <option>Delhi</option>
+                <option>Bangalore</option>
+            </select>
+        </div>
+        
+        <div class="auth-section">
+            <div class="user-profile">
+                <span class="user-name"></span>
+                <button class="profile-btn">Profile</button>
+                <button class="logout-btn">Logout</button>
             </div>
-            <div class="header-center">
-                <p class="subtitle">Book your favorite movies with ease</p>
+            <div class="auth-buttons">
+                <a href="login.html" class="login-btn">Login</a>
+                <a href="signup.html" class="signup-btn">Sign Up</a>
             </div>
-            <div class="header-right">
-                <div class="user-profile">
-                    <span>Welcome, <span class="user-name"></span></span>
-                    <button class="profile-btn">Profile</button>
-                    <button class="logout-btn">Logout</button>
-                </div>
-                <div class="auth-buttons">
-                    <a href="login.html" class="auth-btn login-btn">Login</a>
-                    <a href="signup.html" class="auth-btn signup-btn">Sign Up</a>
-                </div>
-            </div>
-        </header>
+        </div>
+    </header>
 
+    <div class="container">
         <main>
+            <!-- Hero Section with Slideshow -->
+            <section class="hero-section">
+                <div class="swiper hero-slider">
+                    <div class="swiper-wrapper">
+                        <div class="swiper-slide">
+                            <img src="https://wallup.net/wp-content/uploads/2019/09/858538-poster-movie-film-movies-posters.jpg" alt="Movie poster">
+                            <div class="slide-overlay">
+                                <p>Experience the magic of cinema</p>
+                                <button class="book-now-btn">Book Now</button>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <img src="https://collider.com/wp-content/uploads/inception_movie_poster_banner_04.jpg" alt="Inception movie poster">
+                            <div class="slide-overlay">
+                                <p>Latest blockbusters and classics</p>
+                                <button class="book-now-btn">Book Now</button>
+                            </div>
+                        </div>
+                        <div class="swiper-slide">
+                            <img src="https://static1.moviewebimages.com/wordpress/wp-content/uploads/article/nV2VonPhcU8eYBJssm1tpCIHKgpHb8.jpg" alt="Movie poster">
+                            <div class="slide-overlay">
+                                <p>Premium viewing experience</p>
+                                <button class="book-now-btn">Book Now</button>
+                            </div>
+                        </div>
+                    </div>
+                    <!-- Pagination dots but no navigation buttons -->
+                    <div class="swiper-pagination"></div>
+                </div>
+            </section>
+
+            <!-- Movie List Section -->
             <section class="movie-list">
                 <h2>Now Showing</h2>
                 <div id="movieContainer" class="movie-container">
@@ -242,10 +316,11 @@
         </main>
 
         <footer>
-            <p>&copy; 2025 Movie Ticket Booking System</p>
+            <p>&copy; 2025 CineMax Movie Booking</p>
         </footer>
     </div>
     <div id="notification" class="notification"></div>
+    <script src="https://cdn.jsdelivr.net/npm/swiper@8/swiper-bundle.min.js"></script>
     <script src="script.js"></script>
 </body>
 </html>
