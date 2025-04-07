@@ -201,8 +201,27 @@ public class SimpleServer {
                 int movieId = Integer.parseInt(SimpleServer.extractJsonValue(json, "movieId"));
                 int numSeats = Integer.parseInt(SimpleServer.extractJsonValue(json, "seats"));
                 
+                // Parse showId from the JSON - this is the specific show timing the user selected
+                int showId = Integer.parseInt(SimpleServer.extractJsonValue(json, "showId"));
+                
                 conn = DatabaseConnection.getConnection();
                 conn.setAutoCommit(false);
+                
+                // First, check if there are enough seats available for this show
+                PreparedStatement checkSeatsStmt = conn.prepareStatement(
+                    "SELECT AvailableSeats FROM show_timings WHERE ShowID = ?"
+                );
+                checkSeatsStmt.setInt(1, showId);
+                ResultSet seatsRs = checkSeatsStmt.executeQuery();
+                
+                if (!seatsRs.next()) {
+                    throw new SQLException("Show timing not found");
+                }
+                
+                int availableSeats = seatsRs.getInt("AvailableSeats");
+                if (availableSeats < numSeats) {
+                    throw new SQLException("Not enough seats available. Only " + availableSeats + " seats left.");
+                }
                 
                 // First insert customer
                 PreparedStatement customerStmt = conn.prepareStatement(
@@ -235,15 +254,27 @@ public class SimpleServer {
                     reservationId = rs.getInt(1);
                 }
                 
-                // Get movie details
-                PreparedStatement movieStmt = conn.prepareStatement(
-                    "SELECT Title FROM movie WHERE MovieID = ?"
+                // Get movie details and show timing details
+                PreparedStatement showDetailsStmt = conn.prepareStatement(
+                    "SELECT m.Title, s.ScreenNo, s.ShowTime, s.ShowDate " +
+                    "FROM show_timings s JOIN movie m ON s.MovieID = m.MovieID " +
+                    "WHERE s.ShowID = ?"
                 );
-                movieStmt.setInt(1, movieId);
-                ResultSet movieRs = movieStmt.executeQuery();
+                showDetailsStmt.setInt(1, showId);
+                ResultSet showDetailsRs = showDetailsStmt.executeQuery();
+                
                 String movieTitle = "";
-                if (movieRs.next()) {
-                    movieTitle = movieRs.getString("Title");
+                int screenNo = 0;
+                String showTime = "";
+                String showDate = "";
+                
+                if (showDetailsRs.next()) {
+                    movieTitle = showDetailsRs.getString("Title");
+                    screenNo = showDetailsRs.getInt("ScreenNo");
+                    showTime = showDetailsRs.getString("ShowTime");
+                    showDate = showDetailsRs.getString("ShowDate");
+                } else {
+                    throw new SQLException("Show details not found");
                 }
                 
                 // Generate tickets
@@ -256,26 +287,27 @@ public class SimpleServer {
                 for (int i = 0; i < numSeats; i++) {
                     // Find an available seat by checking if it's already booked
                     boolean seatFound = false;
-                    int rowNo = 0, seatNo = 0, screenNo = 0;
+                    int rowNo = 0, seatNo = 0;
                     double price = 200.00; // Default price
                     
                     // Try to find an available seat
                     for (int row = 1; row <= 5 && !seatFound; row++) {
                         for (int seat = 1; seat <= 20 && !seatFound; seat++) {
-                            // Check if this seat is already booked
+                            // Check if this seat is already booked for this show
                             PreparedStatement checkSeatStmt = conn.prepareStatement(
-                                "SELECT COUNT(*) FROM tickets WHERE RowNo = ? AND SeatNo = ? AND ScreenNo = ?"
+                                "SELECT COUNT(*) FROM tickets " +
+                                "WHERE RowNo = ? AND SeatNo = ? AND ScreenNo = ? AND ShowID = ?"
                             );
                             checkSeatStmt.setInt(1, row);
                             checkSeatStmt.setInt(2, seat);
-                            checkSeatStmt.setInt(3, 1); // Screen 1
+                            checkSeatStmt.setInt(3, screenNo);
+                            checkSeatStmt.setInt(4, showId);
                             ResultSet checkRs = checkSeatStmt.executeQuery();
                             
                             if (checkRs.next() && checkRs.getInt(1) == 0) {
                                 // Seat is available
                                 rowNo = row;
                                 seatNo = seat;
-                                screenNo = 1;
                                 seatFound = true;
                             }
                         }
@@ -290,7 +322,7 @@ public class SimpleServer {
                     
                     // Create a new ticket
                     PreparedStatement ticketStmt = conn.prepareStatement(
-                        "INSERT INTO tickets (SeatNo, RowNo, ScreenNo, ReservationID, Price) VALUES (?, ?, ?, ?, ?)",
+                        "INSERT INTO tickets (SeatNo, RowNo, ScreenNo, ReservationID, Price, ShowID) VALUES (?, ?, ?, ?, ?, ?)",
                         PreparedStatement.RETURN_GENERATED_KEYS
                     );
                     
@@ -299,6 +331,7 @@ public class SimpleServer {
                     ticketStmt.setInt(3, screenNo);
                     ticketStmt.setInt(4, reservationId);
                     ticketStmt.setDouble(5, price);
+                    ticketStmt.setInt(6, showId);
                     ticketStmt.executeUpdate();
                     
                     // Get the ticket ID
@@ -333,18 +366,30 @@ public class SimpleServer {
                 }
                 ticketsJson.append("]");
                 
+                // Update available seats in the show_timings table
+                PreparedStatement updateSeatsStmt = conn.prepareStatement(
+                    "UPDATE show_timings SET AvailableSeats = AvailableSeats - ? WHERE ShowID = ?"
+                );
+                updateSeatsStmt.setInt(1, numSeats);
+                updateSeatsStmt.setInt(2, showId);
+                updateSeatsStmt.executeUpdate();
+                
                 System.out.println("Tickets JSON: " + ticketsJson.toString());
+                System.out.println("Updated available seats for ShowID " + showId + ": reduced by " + numSeats);
                 
                 conn.commit();
                 
                 // Build success response with ticket details
                 String successResponse = String.format(
-                    "{\"success\":true,\"message\":\"Booking completed successfully!\",\"reservationId\":%d,\"ticket\":{\"reservationId\":%d,\"movieTitle\":\"%s\",\"tickets\":%s,\"dateTime\":\"%s\"}}",
+                    "{\"success\":true,\"message\":\"Booking completed successfully!\",\"reservationId\":%d,\"ticket\":{\"reservationId\":%d,\"movieTitle\":\"%s\",\"tickets\":%s,\"dateTime\":\"%s\",\"showTime\":\"%s\",\"showDate\":\"%s\",\"screenNo\":%d}}",
                     reservationId,
                     reservationId,
                     SimpleServer.escapeJson(movieTitle),
                     ticketsJson.toString(),
-                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME)
+                    java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ISO_LOCAL_DATE_TIME),
+                    showTime,
+                    showDate,
+                    screenNo
                 );
                 
                 System.out.println("Final response: " + successResponse);
@@ -573,6 +618,35 @@ public class SimpleServer {
                 conn = DatabaseConnection.getConnection();
                 conn.setAutoCommit(false);
                 
+                // Get reservation details to find the show timing
+                PreparedStatement reservationStmt = conn.prepareStatement(
+                    "SELECT COUNT(t.TicketID) as TicketCount, t.ShowID " +
+                    "FROM tickets t " +
+                    "WHERE t.ReservationID = ? " +
+                    "GROUP BY t.ShowID"
+                );
+                reservationStmt.setInt(1, reservationId);
+                ResultSet reservationRs = reservationStmt.executeQuery();
+                
+                if (reservationRs.next()) {
+                    int ticketCount = reservationRs.getInt("TicketCount");
+                    int showId = reservationRs.getInt("ShowID");
+                    
+                    // Update available seats in the show_timings table
+                    PreparedStatement updateSeatsStmt = conn.prepareStatement(
+                        "UPDATE show_timings SET AvailableSeats = AvailableSeats + ? " +
+                        "WHERE ShowID = ?"
+                    );
+                    updateSeatsStmt.setInt(1, ticketCount);
+                    updateSeatsStmt.setInt(2, showId);
+                    int updatedRows = updateSeatsStmt.executeUpdate();
+                    
+                    System.out.println("Updated show_timings with ID " + showId + ": " +
+                                      "restored " + ticketCount + " seats, affected " + updatedRows + " rows");
+                } else {
+                    System.out.println("Warning: No tickets found for reservation ID " + reservationId);
+                }
+                
                 // First, restore snack quantities
                 PreparedStatement snackStmt = conn.prepareStatement(
                     "UPDATE snackscounter sc " +
@@ -794,16 +868,27 @@ public class SimpleServer {
                 boolean first = true;
                 
                 while (rs.next()) {
+                    int showId = rs.getInt("ShowID");
+                    String showTime = rs.getString("ShowTime");
+                    String showDate = rs.getString("ShowDate");
+                    int screenNo = rs.getInt("ScreenNo");
+                    int availableSeats = rs.getInt("AvailableSeats");
+                    String movieName = rs.getString("MovieName");
+                    
+                    System.out.println("Found show: ID=" + showId + ", Movie=" + movieName + 
+                                     ", Time=" + showTime + ", Date=" + showDate + 
+                                     ", Screen=" + screenNo + ", Available Seats=" + availableSeats);
+                    
                     if (!first) {
                         jsonBuilder.append(",");
                     }
                     jsonBuilder.append("{")
-                              .append("\"showId\":").append(rs.getInt("ShowID")).append(",")
-                              .append("\"showTime\":\"").append(rs.getString("ShowTime")).append("\",")
-                              .append("\"showDate\":\"").append(rs.getString("ShowDate")).append("\",")
-                              .append("\"screenNo\":").append(rs.getInt("ScreenNo")).append(",")
-                              .append("\"availableSeats\":").append(rs.getInt("AvailableSeats")).append(",")
-                              .append("\"movieName\":\"").append(escapeJsonString(rs.getString("MovieName"))).append("\"")
+                              .append("\"showId\":").append(showId).append(",")
+                              .append("\"showTime\":\"").append(showTime).append("\",")
+                              .append("\"showDate\":\"").append(showDate).append("\",")
+                              .append("\"screenNo\":").append(screenNo).append(",")
+                              .append("\"availableSeats\":").append(availableSeats).append(",")
+                              .append("\"movieName\":\"").append(escapeJsonString(movieName)).append("\"")
                               .append("}");
                     first = false;
                 }

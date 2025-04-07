@@ -165,7 +165,7 @@ function updateQuantity(snackId, delta) {
     input.value = newValue;
 }
 
-function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieName) {
+function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieName, availableSeats) {
     const user = JSON.parse(localStorage.getItem('user'));
     
     if (!user) {
@@ -185,6 +185,7 @@ function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieNam
     ticketForm.dataset.showDate = showDate;
     ticketForm.dataset.screenNo = screenNo;
     ticketForm.dataset.movieName = movieName;
+    ticketForm.dataset.availableSeats = availableSeats; // Store available seats info
     
     // Display show timing information
     const showInfoDiv = document.createElement('div');
@@ -195,6 +196,7 @@ function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieNam
         <p><strong>Date:</strong> ${new Date(showDate).toLocaleDateString()}</p>
         <p><strong>Time:</strong> ${showTime}</p>
         <p><strong>Screen:</strong> ${screenNo}</p>
+        <p><strong>Available Seats:</strong> <span class="available-seats" data-show-id="${showId}">${availableSeats}</span></p>
     `;
     
     // Insert show info before the form
@@ -212,6 +214,10 @@ function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieNam
         document.getElementById('age').disabled = true;
         document.getElementById('gender').disabled = true;
     }
+    
+    // Set maximum selectable seats based on available seats
+    const seatsInput = document.getElementById('seats');
+    seatsInput.max = availableSeats;
     
     // Hide snack form until booking is complete
     const snackForm = document.getElementById('snackForm');
@@ -420,6 +426,7 @@ document.getElementById('ticketForm').addEventListener('submit', function(e) {
     
     const formData = {
         movieId: parseInt(this.dataset.movieId),
+        showId: parseInt(this.dataset.showId),
         name: document.getElementById('name').value.trim(),
         age: parseInt(document.getElementById('age').value),
         gender: document.getElementById('gender').value,
@@ -429,6 +436,10 @@ document.getElementById('ticketForm').addEventListener('submit', function(e) {
     // Validate form data
     if (!formData.movieId) {
         showNotification('Invalid movie selection. Please try again.', true);
+        return;
+    }
+    if (!formData.showId) {
+        showNotification('Invalid show timing selection. Please try again.', true);
         return;
     }
     if (!formData.name) {
@@ -445,6 +456,13 @@ document.getElementById('ticketForm').addEventListener('submit', function(e) {
     }
     if (isNaN(formData.seats) || formData.seats < 1 || formData.seats > 10) {
         showNotification('Please select a valid number of seats (1-10).', true);
+        return;
+    }
+    
+    // Check if requested seats exceed available seats
+    const availableSeats = parseInt(this.dataset.availableSeats || 0);
+    if (formData.seats > availableSeats) {
+        showNotification(`Only ${availableSeats} seats available for this show.`, true);
         return;
     }
     
@@ -476,6 +494,9 @@ document.getElementById('ticketForm').addEventListener('submit', function(e) {
         showNotification('Booking completed successfully!');
         this.reset();
         showTicketDetails(data.ticket);
+        
+        // Update the displayed available seats count in the UI if applicable
+        updateAvailableSeatsDisplay(formData.showId, formData.seats);
     })
     .catch(error => {
         console.error('Error booking ticket:', error);
@@ -660,6 +681,37 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     });
 }
 
+// Add this function to update available seats display after booking
+function updateAvailableSeatsDisplay(showId, bookedSeats) {
+    // Update all display elements with this show ID (buttons, booking form, etc.)
+    document.querySelectorAll(`[data-show-id="${showId}"]`).forEach(element => {
+        if (element.classList.contains('available-seats')) {
+            // This is a display counter
+            const currentCount = parseInt(element.textContent);
+            const newCount = currentCount - bookedSeats;
+            element.textContent = newCount;
+        } else if (element.classList.contains('seats-info')) {
+            // This is a button display
+            const currentText = element.textContent;
+            const currentCount = parseInt(currentText.match(/\d+/)[0]);
+            const newCount = currentCount - bookedSeats;
+            element.textContent = `${newCount} seats left`;
+        }
+    });
+    
+    // If we have a show-time-btn with this show ID, update it too
+    const showButton = document.querySelector(`.show-time-btn[data-show-id="${showId}"]`);
+    if (showButton) {
+        const seatsInfo = showButton.querySelector('.seats-info');
+        if (seatsInfo) {
+            const currentCount = parseInt(seatsInfo.textContent.match(/\d+/)[0]);
+            const newCount = currentCount - bookedSeats;
+            seatsInfo.textContent = `${newCount} seats left`;
+            seatsInfo.dataset.availableSeats = newCount;
+        }
+    }
+}
+
 async function loadShowTimings(movieId) {
     try {
         const response = await fetch(`/api/showtimings?movieId=${movieId}`);
@@ -682,13 +734,25 @@ async function loadShowTimings(movieId) {
                 
                 const showButton = document.createElement('button');
                 showButton.className = 'show-time-btn';
+                showButton.dataset.showId = show.showId; // Store show ID as data attribute
+                
                 showButton.innerHTML = `
                     <div class="show-date">${formattedDate}</div>
                     <div class="show-time">${show.showTime}</div>
                     <div class="screen-info">Screen ${show.screenNo}</div>
-                    <div class="seats-info">${show.availableSeats} seats left</div>
+                    <div class="seats-info" data-show-id="${show.showId}">${show.availableSeats} seats left</div>
                 `;
-                showButton.onclick = () => showBookingForm(movieId, show.showId, show.showTime, show.showDate, show.screenNo, show.movieName);
+                
+                showButton.onclick = () => showBookingForm(
+                    movieId, 
+                    show.showId, 
+                    show.showTime, 
+                    show.showDate, 
+                    show.screenNo, 
+                    show.movieName,
+                    show.availableSeats
+                );
+                
                 timingsGrid.appendChild(showButton);
             });
             
