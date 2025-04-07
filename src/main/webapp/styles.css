@@ -454,20 +454,15 @@ footer {
 
 .ticket-actions {
     display: flex;
-    gap: 15px;
     justify-content: center;
-    margin-top: 25px;
-    padding-top: 20px;
-    border-top: 1px solid #e9ecef;
+    padding: 15px;
+    background: #f9f9f9;
+    border-top: 1px solid #eee;
 }
 
 .ticket-actions button {
-    min-width: 140px;
-    padding: 12px 24px;
-    font-size: 16px;
-    border-radius: 8px;
-    cursor: pointer;
-    transition: all 0.2s;
+    min-width: 120px;
+    margin: 0 5px;
 }
 
 .ticket-actions .submit-btn {
@@ -492,6 +487,21 @@ footer {
     background-color: #e9ecef;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.cancel-ticket-btn {
+    background-color: #e74c3c;
+    color: white;
+    border: none;
+    padding: 10px 15px;
+    border-radius: 5px;
+    cursor: pointer;
+    font-weight: 500;
+    transition: background-color 0.3s;
+}
+
+.cancel-ticket-btn:hover {
+    background-color: #c0392b;
 }
 
 /* Add scrollbar styling */
@@ -970,18 +980,6 @@ section h2::after {
 
 .booking-id, .booking-date {
     margin: 0;
-}
-
-.ticket-actions {
-    display: flex;
-    justify-content: center;
-    padding: 15px;
-    background: #f9f9f9;
-    border-top: 1px solid #eee;
-}
-
-.ticket-actions button {
-    min-width: 120px;
 }
 
 /* Icon styles */

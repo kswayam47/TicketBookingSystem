@@ -240,23 +240,23 @@ function showTicketDetails(ticketData) {
     const screenNo = ticketForm.dataset.screenNo || 'N/A';
     
     let ticketHtml = `
-        <div class="ticket-header">
-            <h2>Movie Ticket</h2>
-            <div class="ticket-qr">🎬</div>
-        </div>
-        <div class="ticket-body">
-            <div class="movie-info">
-                <h3>${escapeHtml(ticketData.movieTitle)}</h3>
-                <div class="show-details">
-                    <p><i class="icon-calendar"></i> <strong>Date:</strong> ${showDate}</p>
-                    <p><i class="icon-time"></i> <strong>Time:</strong> ${showTime}</p>
-                    <p><i class="icon-screen"></i> <strong>Screen:</strong> ${screenNo}</p>
-                </div>
+        <div class="ticket-container">
+            <div class="ticket-header">
+                <h2>Movie Ticket</h2>
             </div>
-            <div class="ticket-divider"></div>
-            <div class="seat-details">
-                <h4>Seat Details</h4>
-                <div class="ticket-seats">
+            <div class="ticket-body">
+                <div class="movie-info">
+                    <h3>${escapeHtml(ticketData.movieTitle)}</h3>
+                    <div class="show-details">
+                        <p><i class="icon-calendar"></i> <strong>Date:</strong> ${showDate}</p>
+                        <p><i class="icon-time"></i> <strong>Time:</strong> ${showTime}</p>
+                        <p><i class="icon-screen"></i> <strong>Screen:</strong> ${screenNo}</p>
+                    </div>
+                </div>
+                <div class="ticket-divider"></div>
+                <div class="seat-details">
+                    <h4>Seat Details</h4>
+                    <div class="ticket-seats">
     `;
     
     let totalAmount = 0;
@@ -297,6 +297,7 @@ function showTicketDetails(ticketData) {
         </div>
         <div class="ticket-actions">
             <button onclick="showSnackForm(${ticketData.reservationId})" class="submit-btn">Order Snacks</button>
+            <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>
             <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
         </div>
     `;
@@ -617,6 +618,7 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
                 </div>
             </div>
             <div class="ticket-actions">
+                <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>
                 <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
             </div>
         </div>
@@ -671,4 +673,38 @@ async function loadShowTimings(movieId) {
         console.error('Error loading show timings:', error);
         showNotification('Failed to load show timings', 'error');
     }
+}
+
+// Add the cancelTicket function
+function cancelTicket(reservationId) {
+    if (!confirm('Are you sure you want to cancel this ticket? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch('/api/booking/cancel', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reservationId: reservationId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        showNotification('Ticket cancelled successfully!');
+        hideTicketModal();
+        // Refresh the page to update the UI
+        window.location.reload();
+    })
+    .catch(error => {
+        console.error('Error cancelling ticket:', error);
+        showNotification(error.message || 'Error cancelling ticket. Please try again.', true);
+    });
 }
