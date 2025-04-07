@@ -181,6 +181,7 @@
                 <div id="movieContainer" class="movie-container">
                     <!-- Movies will be loaded here dynamically -->
                 </div>
+                <div id="show-timings" class="show-timings-container"></div>
             </section>
 
             <section id="bookingForm" class="booking-form" style="display: none;">
@@ -228,6 +229,15 @@
                     <button type="submit" class="submit-btn">Place Snack Order</button>
                     <button type="button" class="cancel-btn" onclick="this.closest('.snack-form').style.display='none'">Skip</button>
                 </form>
+            </div>
+
+            <!-- Add the seats modal -->
+            <div id="seats-modal" class="modal">
+                <div class="modal-content">
+                    <span class="close-modal">&times;</span>
+                    <h2>Select Your Seats</h2>
+                    <div id="seats-container"></div>
+                </div>
             </div>
         </main>
 

@@ -17,12 +17,21 @@ import java.util.HashMap;
 import java.util.Map;
 import java.sql.DriverManager;
 import java.sql.Statement;
+import java.util.HashSet;
+import java.util.Set;
 
 public class SimpleServer {
     private static final int PORT = 8080;
     private static final String DB_URL = "jdbc:mysql://localhost:3306/ticketbookingsystem";
     private static final String DB_USER = "root";
     private static final String DB_PASSWORD = "Root@123";
+
+    // Add these constants after the existing DB constants
+    private static final String GET_SHOW_TIMINGS = "SELECT s.ShowID, s.ShowTime, s.ShowDate, s.ScreenNo, s.AvailableSeats, m.Title as MovieName " +
+                                                 "FROM show_timings s JOIN movie m ON s.MovieID = m.MovieID " +
+                                                 "WHERE s.MovieID = ?";
+    private static final String GET_SEATS = "SELECT SeatNumber FROM reservations WHERE ShowID = ?";
+    private static final String UPDATE_AVAILABLE_SEATS = "UPDATE show_timings SET AvailableSeats = AvailableSeats - ? WHERE ShowID = ?";
 
     public static void main(String[] args) throws Exception {
         HttpServer server = HttpServer.create(new InetSocketAddress(PORT), 0);
@@ -41,6 +50,10 @@ public class SimpleServer {
         // Authentication endpoints
         server.createContext("/api/login", new LoginHandler());
         server.createContext("/api/signup", new SignupHandler());
+        
+        // New endpoints
+        server.createContext("/api/showtimings", new ShowTimingsHandler());
+        server.createContext("/api/seats", new SeatsHandler());
         
         server.setExecutor(null);
         server.start();
@@ -746,6 +759,128 @@ public class SimpleServer {
         }
     }
     
+    static class ShowTimingsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!exchange.getRequestMethod().equals("GET")) {
+                sendJsonResponse(exchange, "{\"error\": \"Method not allowed\"}", 405);
+                return;
+            }
+
+            String query = exchange.getRequestURI().getQuery();
+            if (query == null || !query.startsWith("movieId=")) {
+                sendJsonResponse(exchange, "{\"error\": \"Invalid request\"}", 400);
+                return;
+            }
+
+            int movieId;
+            try {
+                movieId = Integer.parseInt(query.substring(8));
+                System.out.println("Fetching show timings for movie ID: " + movieId);
+            } catch (NumberFormatException e) {
+                sendJsonResponse(exchange, "{\"error\": \"Invalid movie ID\"}", 400);
+                return;
+            }
+
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement stmt = conn.prepareStatement(GET_SHOW_TIMINGS)) {
+                
+                stmt.setInt(1, movieId);
+                System.out.println("Executing query: " + GET_SHOW_TIMINGS + " with movieId=" + movieId);
+                ResultSet rs = stmt.executeQuery();
+                
+                StringBuilder jsonBuilder = new StringBuilder();
+                jsonBuilder.append("{\"showTimings\": [");
+                boolean first = true;
+                
+                while (rs.next()) {
+                    if (!first) {
+                        jsonBuilder.append(",");
+                    }
+                    jsonBuilder.append("{")
+                              .append("\"showId\":").append(rs.getInt("ShowID")).append(",")
+                              .append("\"showTime\":\"").append(rs.getString("ShowTime")).append("\",")
+                              .append("\"showDate\":\"").append(rs.getString("ShowDate")).append("\",")
+                              .append("\"screenNo\":").append(rs.getInt("ScreenNo")).append(",")
+                              .append("\"availableSeats\":").append(rs.getInt("AvailableSeats")).append(",")
+                              .append("\"movieName\":\"").append(escapeJsonString(rs.getString("MovieName"))).append("\"")
+                              .append("}");
+                    first = false;
+                }
+                jsonBuilder.append("]}");
+                
+                String response = jsonBuilder.toString();
+                System.out.println("Sending response: " + response);
+                sendJsonResponse(exchange, response, 200);
+            } catch (SQLException e) {
+                e.printStackTrace();
+                System.err.println("Database error in ShowTimingsHandler: " + e.getMessage());
+                sendJsonResponse(exchange, "{\"error\": \"Database error: " + escapeJson(e.getMessage()) + "\"}", 500);
+            }
+        }
+    }
+
+    static class SeatsHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            if (!exchange.getRequestMethod().equals("GET")) {
+                sendJsonResponse(exchange, "{\"error\": \"Method not allowed\"}", 405);
+                return;
+            }
+
+            String query = exchange.getRequestURI().getQuery();
+            if (query == null || !query.startsWith("showId=")) {
+                sendJsonResponse(exchange, "{\"error\": \"Invalid request\"}", 400);
+                return;
+            }
+
+            int showId;
+            try {
+                showId = Integer.parseInt(query.substring(7));
+            } catch (NumberFormatException e) {
+                sendJsonResponse(exchange, "{\"error\": \"Invalid show ID\"}", 400);
+                return;
+            }
+
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement stmt = conn.prepareStatement(GET_SEATS)) {
+                
+                stmt.setInt(1, showId);
+                ResultSet rs = stmt.executeQuery();
+                
+                Set<Integer> bookedSeats = new HashSet<>();
+                while (rs.next()) {
+                    bookedSeats.add(rs.getInt("SeatNumber"));
+                }
+                
+                StringBuilder jsonBuilder = new StringBuilder();
+                jsonBuilder.append("{\"seats\": {");
+                
+                // Generate 8 rows with 15 seats each
+                for (int row = 1; row <= 8; row++) {
+                    if (row > 1) jsonBuilder.append(",");
+                    jsonBuilder.append("\"row").append(row).append("\": [");
+                    
+                    for (int seat = 1; seat <= 15; seat++) {
+                        if (seat > 1) jsonBuilder.append(",");
+                        int seatNumber = (row - 1) * 15 + seat;
+                        jsonBuilder.append("{")
+                                  .append("\"number\":").append(seatNumber).append(",")
+                                  .append("\"isBooked\":").append(bookedSeats.contains(seatNumber))
+                                  .append("}");
+                    }
+                    jsonBuilder.append("]");
+                }
+                jsonBuilder.append("}}");
+                
+                sendJsonResponse(exchange, jsonBuilder.toString(), 200);
+            } catch (SQLException e) {
+                e.printStackTrace();
+                sendJsonResponse(exchange, "{\"error\": \"Database error\"}", 500);
+            }
+        }
+    }
+    
     // Utility methods for JSON handling
     private static String escapeJson(String input) {
         if (input == null) {
@@ -871,5 +1006,45 @@ public class SimpleServer {
     private static void sendResponse(HttpExchange exchange, String message, int statusCode) throws IOException {
         String response = "{\"error\": \"" + message + "\"}";
         sendJsonResponse(exchange, response, statusCode);
+    }
+
+    // Add this utility method before the main method
+    private static String escapeJsonString(String input) {
+        if (input == null) {
+            return "null";
+        }
+        StringBuilder sb = new StringBuilder();
+        for (char c : input.toCharArray()) {
+            switch (c) {
+                case '"':
+                    sb.append("\\\"");
+                    break;
+                case '\\':
+                    sb.append("\\\\");
+                    break;
+                case '\b':
+                    sb.append("\\b");
+                    break;
+                case '\f':
+                    sb.append("\\f");
+                    break;
+                case '\n':
+                    sb.append("\\n");
+                    break;
+                case '\r':
+                    sb.append("\\r");
+                    break;
+                case '\t':
+                    sb.append("\\t");
+                    break;
+                default:
+                    if (c < ' ') {
+                        sb.append(String.format("\\u%04x", (int) c));
+                    } else {
+                        sb.append(c);
+                    }
+            }
+        }
+        return sb.toString();
     }
 }

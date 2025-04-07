@@ -105,7 +105,7 @@ function createMovieCard(movie) {
             <p><strong>Genre:</strong> ${escapeHtml(movie.genre || 'N/A')}</p>
             <p><strong>Duration:</strong> ${movie.duration || 'N/A'} minutes</p>
             <p><strong>Release Date:</strong> ${formatDate(movie.releaseDate)}</p>
-            <button onclick="showBookingForm(${movie.id})" class="submit-btn">Book Now</button>
+            <button class="show-times-btn" onclick="loadShowTimings(${movie.id})">Show Times</button>
         </div>
     `;
     
@@ -137,7 +137,7 @@ function updateQuantity(snackId, delta) {
     input.value = newValue;
 }
 
-function showBookingForm(movieId) {
+function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieName) {
     const user = JSON.parse(localStorage.getItem('user'));
     
     if (!user) {
@@ -148,7 +148,30 @@ function showBookingForm(movieId) {
     
     const bookingForm = document.getElementById('bookingForm');
     bookingForm.style.display = 'block';
-    document.getElementById('ticketForm').dataset.movieId = movieId;
+    
+    // Store show timing information in the form's dataset
+    const ticketForm = document.getElementById('ticketForm');
+    ticketForm.dataset.movieId = movieId;
+    ticketForm.dataset.showId = showId;
+    ticketForm.dataset.showTime = showTime;
+    ticketForm.dataset.showDate = showDate;
+    ticketForm.dataset.screenNo = screenNo;
+    ticketForm.dataset.movieName = movieName;
+    
+    // Display show timing information
+    const showInfoDiv = document.createElement('div');
+    showInfoDiv.className = 'show-info';
+    showInfoDiv.innerHTML = `
+        <h3>Show Details</h3>
+        <p><strong>Movie:</strong> ${movieName}</p>
+        <p><strong>Date:</strong> ${new Date(showDate).toLocaleDateString()}</p>
+        <p><strong>Time:</strong> ${showTime}</p>
+        <p><strong>Screen:</strong> ${screenNo}</p>
+    `;
+    
+    // Insert show info before the form
+    const formGroup = ticketForm.querySelector('.form-group');
+    ticketForm.insertBefore(showInfoDiv, formGroup);
     
     // Pre-fill user details if logged in
     if (user) {
@@ -510,109 +533,99 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     receiptHtml += `
         </div>
         <div class="ticket-total">
-            <p><strong>Ticket Total:</strong> ₹${ticketTotal.toFixed(2)}</p>
+            <p><strong>Total Amount:</strong> ₹${ticketTotal.toFixed(2)}</p>
         </div>
     `;
     
-    // Add snack order details
-    receiptHtml += `
-        <div class="snack-section">
-            <h3>Snack Order Details</h3>
-            <div class="snack-items">
-    `;
-    
-    let snackTotal = 0;
-    snackOrderDetails.orders.forEach(order => {
-        const snackItem = window.snacksData.find(s => s.id === order.snackId);
-        if (snackItem) {
-            const itemTotal = snackItem.price * order.quantity;
-            snackTotal += itemTotal;
-            receiptHtml += `
-                <div class="snack-item">
-                    <p>${escapeHtml(snackItem.itemName)} x ${order.quantity}</p>
-                    <p class="price">₹${itemTotal.toFixed(2)}</p>
+    // Add snack order details if available
+    if (snackOrderDetails && snackOrderDetails.orders && snackOrderDetails.orders.length > 0) {
+        receiptHtml += `
+            <div class="snack-section">
+                <h3>Snack Order Details</h3>
+                <div class="snack-orders">
+        `;
+        
+        let snackTotal = 0;
+        snackOrderDetails.orders.forEach(order => {
+            const snack = window.snacksData.find(s => s.id === order.snackId);
+            if (snack) {
+                const price = snack.price * order.quantity;
+                snackTotal += price;
+                receiptHtml += `
+                    <div class="snack-info">
+                        <p><strong>Item:</strong> ${escapeHtml(snack.itemName)}</p>
+                        <p><strong>Quantity:</strong> ${order.quantity}</p>
+                        <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
+                    </div>
+                `;
+            }
+        });
+        
+        receiptHtml += `
                 </div>
-            `;
-        }
-    });
+                <div class="snack-total">
+                    <p><strong>Total Snack Amount:</strong> ₹${snackTotal.toFixed(2)}</p>
+                </div>
+                <div class="grand-total">
+                    <p><strong>Grand Total:</strong> ₹${(ticketTotal + snackTotal).toFixed(2)}</p>
+                </div>
+            </div>
+        `;
+    }
     
     receiptHtml += `
-            </div>
-            <div class="snack-total">
-                <p><strong>Snack Total:</strong> ₹${snackTotal.toFixed(2)}</p>
-            </div>
-        </div>
-        <div class="grand-total">
-            <h3>Grand Total: ₹${(ticketTotal + snackTotal).toFixed(2)}</h3>
-        </div>
-        <div class="receipt-actions">
-            <button onclick="confirmBooking(${ticketData.reservationId})" class="submit-btn">Confirm Booking</button>
-            <button onclick="cancelBooking(${ticketData.reservationId})" class="cancel-btn">Cancel Booking</button>
+        <div class="ticket-actions">
+            <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
         </div>
     `;
     
     ticketContent.innerHTML = receiptHtml;
-    ticketModal.style.display = 'flex';
-}
-
-function confirmBooking(reservationId) {
-    fetch('/api/booking/confirm', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reservationId })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => Promise.reject(err));
-        }
-        return response.json();
-    })
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        showNotification('Booking confirmed successfully!');
-        hideTicketModal();
-        // Reset all quantity inputs
-        document.querySelectorAll('.quantity-input').forEach(input => {
-            input.value = 0;
-        });
-    })
-    .catch(error => {
-        console.error('Error confirming booking:', error);
-        showNotification(error.message || 'Error confirming booking. Please try again.', true);
+    ticketModal.style.display = 'none'; // Reset display
+    requestAnimationFrame(() => {
+        ticketModal.classList.add('show');
+        ticketModal.style.display = 'flex';
     });
 }
 
-function cancelBooking(reservationId) {
-    fetch('/api/booking/cancel', {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ reservationId })
-    })
-    .then(response => {
-        if (!response.ok) {
-            return response.json().then(err => Promise.reject(err));
+async function loadShowTimings(movieId) {
+    try {
+        const response = await fetch(`/api/showtimings?movieId=${movieId}`);
+        const data = await response.json();
+        
+        const showTimingsDiv = document.getElementById('show-timings');
+        showTimingsDiv.innerHTML = '<h3>Available Show Timings</h3>';
+        
+        if (data.showTimings && data.showTimings.length > 0) {
+            const timingsGrid = document.createElement('div');
+            timingsGrid.className = 'show-timings-grid';
+            
+            data.showTimings.forEach(show => {
+                const showDate = new Date(show.showDate);
+                const formattedDate = showDate.toLocaleDateString('en-US', { 
+                    weekday: 'short', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                
+                const showButton = document.createElement('button');
+                showButton.className = 'show-time-btn';
+                showButton.innerHTML = `
+                    <div class="show-date">${formattedDate}</div>
+                    <div class="show-time">${show.showTime}</div>
+                    <div class="screen-info">Screen ${show.screenNo}</div>
+                    <div class="seats-info">${show.availableSeats} seats left</div>
+                `;
+                showButton.onclick = () => showBookingForm(movieId, show.showId, show.showTime, show.showDate, show.screenNo, show.movieName);
+                timingsGrid.appendChild(showButton);
+            });
+            
+            showTimingsDiv.appendChild(timingsGrid);
+            showTimingsDiv.scrollIntoView({ behavior: 'smooth' });
+        } else {
+            showTimingsDiv.innerHTML += '<p>No show timings available for this movie.</p>';
         }
-        return response.json();
-    })
-    .then(data => {
-        if (data.error) {
-            throw new Error(data.error);
-        }
-        showNotification('Booking cancelled successfully.');
-        hideTicketModal();
-        // Reset all quantity inputs
-        document.querySelectorAll('.quantity-input').forEach(input => {
-            input.value = 0;
-        });
-    })
-    .catch(error => {
-        console.error('Error cancelling booking:', error);
-        showNotification(error.message || 'Error cancelling booking. Please try again.', true);
-    });
+    } catch (error) {
+        console.error('Error loading show timings:', error);
+        showNotification('Failed to load show timings', 'error');
+    }
 }
