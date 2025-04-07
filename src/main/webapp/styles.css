@@ -512,21 +512,36 @@ footer {
 }
 
 .snack-item {
-    background-color: #fff;
-    border: 1px solid #ddd;
-    border-radius: 8px;
+    background-color: #ffffff;
+    border-radius: 10px;
     padding: 15px;
-    transition: transform 0.2s;
+    margin-bottom: 15px;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
 }
 
 .snack-item:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    transform: translateY(-3px);
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.1);
+}
+
+/* Low stock indicator */
+.snack-item.low-stock {
+    border-left: 4px solid #e74c3c;
+    background-color: #fff8f8;
+}
+
+.stock-warning {
+    color: #e74c3c;
+    font-size: 0.85rem;
+    margin: 5px 0;
+    font-weight: 500;
 }
 
 .snack-info h4 {
-    margin: 0 0 10px 0;
-    color: #333;
+    margin: 0 0 10px;
+    color: #2c3e50;
 }
 
 .price {
@@ -1357,4 +1372,46 @@ section h2::after {
 /* Remove quick booking styles since we removed that section */
 .quick-booking {
     display: none;
+}
+
+/* Add trending styles to movie cards and snack items */
+.movie-card.trending {
+    border: 2px solid #ff5722;
+    box-shadow: 0 5px 15px rgba(255, 87, 34, 0.3);
+    transform: scale(1.02);
+    z-index: 2;
+}
+
+.snack-item.trending {
+    border: 2px solid #ff5722;
+    box-shadow: 0 5px 15px rgba(255, 87, 34, 0.3);
+    transform: scale(1.02);
+    z-index: 2;
+}
+
+.trending-badge {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: linear-gradient(135deg, #ff5722, #ff9800);
+    color: white;
+    padding: 5px 10px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    font-weight: bold;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+    z-index: 3;
+    animation: pulse 2s infinite;
+}
+
+@keyframes pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.05);
+    }
+    100% {
+        transform: scale(1);
+    }
 }

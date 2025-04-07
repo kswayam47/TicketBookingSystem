@@ -127,8 +127,14 @@ function createMovieCard(movie) {
     const card = document.createElement('div');
     card.className = 'movie-card';
     
+    // Add trending badge if this movie is trending
+    if (movie.trending) {
+        card.classList.add('trending');
+    }
+    
     card.innerHTML = `
         <div class="movie-info">
+            ${movie.trending ? '<div class="trending-badge">TRENDING</div>' : ''}
             <h3>${escapeHtml(movie.title)}</h3>
             <p><strong>Genre:</strong> ${escapeHtml(movie.genre || 'N/A')}</p>
             <p><strong>Duration:</strong> ${movie.duration || 'N/A'} minutes</p>
@@ -144,13 +150,26 @@ function createSnackItem(snack) {
     const item = document.createElement('div');
     item.className = 'snack-item';
     
+    // Add low stock indicator if needed
+    if (snack.lowStock) {
+        item.classList.add('low-stock');
+    }
+    
+    // Add trending indicator if this is a popular snack
+    if (snack.trending) {
+        item.classList.add('trending');
+    }
+    
     item.innerHTML = `
         <div class="snack-info">
+            ${snack.trending ? '<div class="trending-badge">MOST ORDERED</div>' : ''}
             <h4>${escapeHtml(snack.itemName)}</h4>
             <p class="price">₹${snack.price.toFixed(2)}</p>
+            ${snack.lowStock ? `<p class="stock-warning">Low Stock: Only ${snack.quantity} left</p>` : ''}
             <div class="quantity-selector">
                 <button onclick="updateQuantity(${snack.id}, -1)" class="quantity-btn">-</button>
-                <input type="number" min="0" value="0" id="snack-${snack.id}" class="quantity-input">
+                <input type="number" min="0" max="${snack.quantity}" value="0" id="snack-${snack.id}" 
+                       class="quantity-input" data-max-stock="${snack.quantity}">
                 <button onclick="updateQuantity(${snack.id}, 1)" class="quantity-btn">+</button>
             </div>
         </div>
@@ -161,8 +180,21 @@ function createSnackItem(snack) {
 
 function updateQuantity(snackId, delta) {
     const input = document.getElementById(`snack-${snackId}`);
-    const newValue = Math.max(0, parseInt(input.value) + delta);
+    const maxStock = parseInt(input.dataset.maxStock);
+    const currentValue = parseInt(input.value) || 0;
+    
+    // Calculate new value but enforce minimum and maximum limits
+    let newValue = currentValue + delta;
+    newValue = Math.max(0, newValue); // Ensure not below 0
+    newValue = Math.min(maxStock, newValue); // Ensure not above available stock
+    
+    // Set the new value and provide feedback if hitting limits
     input.value = newValue;
+    
+    // Give visual feedback when trying to exceed available stock
+    if (newValue === maxStock && delta > 0) {
+        showNotification(`Maximum available quantity (${maxStock}) reached for this item`, true);
+    }
 }
 
 function showBookingForm(movieId, showId, showTime, showDate, screenNo, movieName, availableSeats) {
@@ -508,15 +540,31 @@ document.getElementById('snackForm').addEventListener('submit', function(e) {
     e.preventDefault();
     
     const snackOrders = [];
+    let hasLowStockWarning = false;
+    let totalItems = 0;
+    
     document.querySelectorAll('.quantity-input').forEach(input => {
         const quantity = parseInt(input.value);
         if (quantity > 0) {
+            const maxStock = parseInt(input.dataset.maxStock);
+            // Double-check we're not exceeding stock
+            if (quantity > maxStock) {
+                showNotification(`Cannot order more than ${maxStock} of this item due to stock limitations`, true);
+                hasLowStockWarning = true;
+                return;
+            }
+            
             snackOrders.push({
                 snackId: parseInt(input.id.replace('snack-', '')),
                 quantity: quantity
             });
+            totalItems += quantity;
         }
     });
+    
+    if (hasLowStockWarning) {
+        return; // Stop submission if we have stock issues
+    }
     
     if (snackOrders.length === 0) {
         showNotification('Please select at least one snack item', true);
@@ -527,6 +575,11 @@ document.getElementById('snackForm').addEventListener('submit', function(e) {
         reservationId: parseInt(this.dataset.reservationId),
         orders: snackOrders
     };
+    
+    // Disable the submit button to prevent double submission
+    const submitButton = this.querySelector('.submit-btn');
+    submitButton.disabled = true;
+    submitButton.textContent = 'Processing...';
     
     fetch('/api/snacks/order', {
         method: 'POST',
@@ -545,19 +598,37 @@ document.getElementById('snackForm').addEventListener('submit', function(e) {
         if (data.error) {
             throw new Error(data.error);
         }
+        
         // Store snack order details for the final receipt
         const snackOrderDetails = {
-            orders: formData.orders,
+            orders: data.orders || formData.orders, // Use orders from response if available
             reservationId: formData.reservationId
         };
+        
+        showNotification(`Successfully ordered ${totalItems} snack items!`);
+        
+        // Check if any items are now low in stock
+        const lowStockItems = data.orders ? data.orders.filter(item => item.lowStock) : [];
+        if (lowStockItems.length > 0) {
+            setTimeout(() => {
+                showNotification(`Note: Some items are running low on stock after your order`, false);
+            }, 3000);
+        }
+        
         // Hide snack form
         document.getElementById('snackForm').style.display = 'none';
+        
         // Show final receipt
         showFinalReceipt(window.lastTicketData, snackOrderDetails);
     })
     .catch(error => {
         console.error('Error ordering snacks:', error);
         showNotification(error.message || 'Error ordering snacks. Please try again.', true);
+    })
+    .finally(() => {
+        // Re-enable the submit button
+        submitButton.disabled = false;
+        submitButton.textContent = 'Place Snack Order';
     });
 });
 
@@ -634,18 +705,23 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
         
         let snackTotal = 0;
         snackOrderDetails.orders.forEach(order => {
-            const snack = window.snacksData.find(s => s.id === order.snackId);
-            if (snack) {
-                const price = snack.price * order.quantity;
-                snackTotal += price;
-                receiptHtml += `
-                    <div class="snack-info">
-                        <p><strong>Item:</strong> ${escapeHtml(snack.itemName)}</p>
-                        <p><strong>Quantity:</strong> ${order.quantity}</p>
-                        <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)}</p>
-                    </div>
-                `;
-            }
+            // Use details directly from response if available, otherwise look up in window.snacksData
+            const itemName = order.itemName || (window.snacksData && 
+                window.snacksData.find(s => s.id === order.snackId)?.itemName) || 'Unknown';
+            const price = order.price || (window.snacksData && 
+                window.snacksData.find(s => s.id === order.snackId)?.price) || 0;
+            const quantity = order.quantity || 0;
+            const totalPrice = order.total || (price * quantity);
+            
+            snackTotal += totalPrice;
+            
+            receiptHtml += `
+                <div class="snack-info">
+                    <p><strong>Item:</strong> ${escapeHtml(itemName)}</p>
+                    <p><strong>Quantity:</strong> ${quantity}</p>
+                    <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)} × ${quantity} = ₹${totalPrice.toFixed(2)}</p>
+                </div>
+            `;
         });
         
         receiptHtml += `

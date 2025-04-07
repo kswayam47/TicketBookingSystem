@@ -55,6 +55,9 @@ public class SimpleServer {
         server.createContext("/api/showtimings", new ShowTimingsHandler());
         server.createContext("/api/seats", new SeatsHandler());
         
+        // Add this in the main method after other endpoint creation
+        server.createContext("/api/admin/snacks", new SnackInventoryHandler());
+        
         server.setExecutor(null);
         server.start();
         
@@ -117,6 +120,22 @@ public class SimpleServer {
                 conn = DatabaseConnection.getConnection();
                 System.out.println("Connected successfully!");
                 
+                // First get the most popular movieId based on ticket sales
+                int trendingMovieId = 0;
+                PreparedStatement trendingStmt = conn.prepareStatement(
+                    "SELECT m.MovieID FROM movie m " +
+                    "JOIN show_timings s ON m.MovieID = s.MovieID " +
+                    "JOIN tickets t ON s.ShowID = t.ShowID " +
+                    "GROUP BY m.MovieID " +
+                    "ORDER BY COUNT(t.TicketID) DESC LIMIT 1"
+                );
+                ResultSet trendingRs = trendingStmt.executeQuery();
+                if (trendingRs.next()) {
+                    trendingMovieId = trendingRs.getInt("MovieID");
+                }
+                trendingRs.close();
+                trendingStmt.close();
+                
                 stmt = conn.prepareStatement("SELECT * FROM movie");
                 System.out.println("Executing query: SELECT * FROM movie");
                 rs = stmt.executeQuery();
@@ -127,15 +146,19 @@ public class SimpleServer {
                 boolean first = true;
                 
                 while (rs.next()) {
+                    int movieId = rs.getInt("MovieID");
+                    boolean isTrending = (movieId == trendingMovieId);
+                    
                     if (!first) {
                         jsonBuilder.append(",");
                     }
                     jsonBuilder.append("{")
-                        .append("\"id\":").append(rs.getInt("MovieID")).append(",")
+                        .append("\"id\":").append(movieId).append(",")
                         .append("\"title\":\"").append(escapeJson(rs.getString("Title"))).append("\",")
                         .append("\"genre\":\"").append(escapeJson(rs.getString("Genre"))).append("\",")
                         .append("\"duration\":").append(rs.getInt("Duration")).append(",")
-                        .append("\"releaseDate\":\"").append(rs.getString("ReleaseDate")).append("\"")
+                        .append("\"releaseDate\":\"").append(rs.getString("ReleaseDate")).append("\",")
+                        .append("\"trending\":").append(isTrending)
                         .append("}");
                     first = false;
                 }
@@ -428,6 +451,23 @@ public class SimpleServer {
             
             try {
                 Connection conn = DatabaseConnection.getConnection();
+                
+                // First identify the top 3 most ordered snacks
+                Set<Integer> trendingSnackIds = new HashSet<>();
+                PreparedStatement trendingStmt = conn.prepareStatement(
+                    "SELECT s.SnackID FROM snackscounter s " +
+                    "JOIN snackorders so ON s.SnackID = so.SnackID " +
+                    "GROUP BY s.SnackID " +
+                    "ORDER BY SUM(so.Quantity) DESC LIMIT 3"
+                );
+                ResultSet trendingRs = trendingStmt.executeQuery();
+                while (trendingRs.next()) {
+                    trendingSnackIds.add(trendingRs.getInt("SnackID"));
+                }
+                trendingRs.close();
+                trendingStmt.close();
+                
+                // Then get all available snacks
                 PreparedStatement stmt = conn.prepareStatement("SELECT * FROM snackscounter WHERE Quantity > 0");
                 ResultSet rs = stmt.executeQuery();
                 
@@ -436,14 +476,21 @@ public class SimpleServer {
                 boolean first = true;
                 
                 while (rs.next()) {
+                    int snackId = rs.getInt("SnackID");
+                    int quantity = rs.getInt("Quantity");
+                    boolean lowStock = quantity < 10; // Flag items with less than 10 in stock as low
+                    boolean isTrending = trendingSnackIds.contains(snackId);
+                    
                     if (!first) {
                         jsonBuilder.append(",");
                     }
                     jsonBuilder.append("{")
-                        .append("\"id\":").append(rs.getInt("SnackID")).append(",")
+                        .append("\"id\":").append(snackId).append(",")
                         .append("\"itemName\":\"").append(SimpleServer.escapeJson(rs.getString("ItemName"))).append("\",")
                         .append("\"price\":").append(rs.getDouble("Price")).append(",")
-                        .append("\"quantity\":").append(rs.getInt("Quantity"))
+                        .append("\"quantity\":").append(quantity).append(",")
+                        .append("\"lowStock\":").append(lowStock).append(",")
+                        .append("\"trending\":").append(isTrending)
                         .append("}");
                     first = false;
                 }
@@ -494,6 +541,10 @@ public class SimpleServer {
                 System.out.println("Found employee ID: " + employeeId);
                 
                 // Process each snack order
+                StringBuilder orderSummary = new StringBuilder();
+                orderSummary.append("[");
+                boolean firstOrder = true;
+
                 String[] orders = ordersJson.split("\\},\\{");
                 for (String order : orders) {
                     int snackId = Integer.parseInt(SimpleServer.extractJsonValue(order, "snackId"));
@@ -501,14 +552,21 @@ public class SimpleServer {
                     
                     // Check stock availability
                     PreparedStatement checkStmt = conn.prepareStatement(
-                        "SELECT Quantity FROM snackscounter WHERE SnackID = ?"
+                        "SELECT ItemName, Quantity, Price FROM snackscounter WHERE SnackID = ?"
                     );
                     checkStmt.setInt(1, snackId);
                     ResultSet checkRs = checkStmt.executeQuery();
                     
                     if (!checkRs.next() || checkRs.getInt("Quantity") < quantity) {
-                        throw new SQLException("Insufficient stock for snack ID: " + snackId);
+                        throw new SQLException("Insufficient stock for snack ID: " + snackId + 
+                                              " (Requested: " + quantity + ", Available: " + 
+                                              (checkRs.next() ? checkRs.getInt("Quantity") : 0) + ")");
                     }
+                    
+                    String itemName = checkRs.getString("ItemName");
+                    double price = checkRs.getDouble("Price");
+                    int availableQuantity = checkRs.getInt("Quantity");
+                    int remainingQuantity = availableQuantity - quantity;
                     
                     // Update stock
                     PreparedStatement updateStmt = conn.prepareStatement(
@@ -527,10 +585,28 @@ public class SimpleServer {
                     orderStmt.setInt(3, quantity);
                     orderStmt.setInt(4, employeeId);
                     orderStmt.executeUpdate();
+                    
+                    // Add order details to response
+                    if (!firstOrder) {
+                        orderSummary.append(",");
+                    }
+                    orderSummary.append("{")
+                        .append("\"snackId\":").append(snackId).append(",")
+                        .append("\"itemName\":\"").append(SimpleServer.escapeJson(itemName)).append("\",")
+                        .append("\"quantity\":").append(quantity).append(",")
+                        .append("\"price\":").append(price).append(",")
+                        .append("\"total\":").append(price * quantity).append(",")
+                        .append("\"remainingStock\":").append(remainingQuantity).append(",")
+                        .append("\"lowStock\":").append(remainingQuantity < 10)
+                        .append("}");
+                    firstOrder = false;
                 }
-                
+                orderSummary.append("]");
+
                 conn.commit();
-                SimpleServer.sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Snacks ordered successfully\"}", 200);
+                SimpleServer.sendJsonResponse(exchange, 
+                    "{\"success\": true, \"message\": \"Snacks ordered successfully\", \"orders\": " + 
+                    orderSummary.toString() + "}", 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -1131,5 +1207,174 @@ public class SimpleServer {
             }
         }
         return sb.toString();
+    }
+
+    // Then add this class near other handlers
+    static class SnackInventoryHandler implements HttpHandler {
+        @Override
+        public void handle(HttpExchange exchange) throws IOException {
+            // Check request method
+            String method = exchange.getRequestMethod();
+            
+            if ("OPTIONS".equals(method)) {
+                handleCors(exchange);
+                return;
+            }
+            
+            if ("GET".equals(method)) {
+                handleGetSnacks(exchange);
+            } else if ("POST".equals(method)) {
+                handleUpdateSnack(exchange);
+            } else if ("PUT".equals(method)) {
+                handleAddSnack(exchange);
+            } else {
+                sendJsonResponse(exchange, "{\"error\": \"Method not allowed\"}", 405);
+            }
+        }
+        
+        private void handleGetSnacks(HttpExchange exchange) throws IOException {
+            try (Connection conn = DriverManager.getConnection(DB_URL, DB_USER, DB_PASSWORD);
+                 PreparedStatement stmt = conn.prepareStatement("SELECT * FROM snackscounter")) {
+                
+                ResultSet rs = stmt.executeQuery();
+                
+                StringBuilder jsonBuilder = new StringBuilder();
+                jsonBuilder.append("[");
+                boolean first = true;
+                
+                while (rs.next()) {
+                    if (!first) {
+                        jsonBuilder.append(",");
+                    }
+                    jsonBuilder.append("{")
+                        .append("\"id\":").append(rs.getInt("SnackID")).append(",")
+                        .append("\"itemName\":\"").append(escapeJson(rs.getString("ItemName"))).append("\",")
+                        .append("\"price\":").append(rs.getDouble("Price")).append(",")
+                        .append("\"quantity\":").append(rs.getInt("Quantity"))
+                        .append("}");
+                    first = false;
+                }
+                jsonBuilder.append("]");
+                
+                sendJsonResponse(exchange, jsonBuilder.toString(), 200);
+                
+            } catch (SQLException e) {
+                e.printStackTrace();
+                sendJsonResponse(exchange, "{\"error\": \"" + escapeJson(e.getMessage()) + "\"}", 500);
+            }
+        }
+        
+        private void handleUpdateSnack(HttpExchange exchange) throws IOException {
+            Connection conn = null;
+            try {
+                // Read request body
+                String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                int snackId = Integer.parseInt(extractJsonValue(requestBody, "id"));
+                String itemName = extractJsonValue(requestBody, "itemName");
+                double price = Double.parseDouble(extractJsonValue(requestBody, "price"));
+                int quantity = Integer.parseInt(extractJsonValue(requestBody, "quantity"));
+                
+                conn = DatabaseConnection.getConnection();
+                conn.setAutoCommit(false);
+                
+                // Update the snack
+                PreparedStatement stmt = conn.prepareStatement(
+                    "UPDATE snackscounter SET ItemName = ?, Price = ?, Quantity = ? WHERE SnackID = ?"
+                );
+                stmt.setString(1, itemName);
+                stmt.setDouble(2, price);
+                stmt.setInt(3, quantity);
+                stmt.setInt(4, snackId);
+                
+                int updated = stmt.executeUpdate();
+                
+                if (updated > 0) {
+                    conn.commit();
+                    sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Snack updated successfully\"}", 200);
+                } else {
+                    conn.rollback();
+                    sendJsonResponse(exchange, "{\"error\": \"No snack found with ID " + snackId + "\"}", 404);
+                }
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (conn != null) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                sendJsonResponse(exchange, "{\"error\": \"" + escapeJson(e.getMessage()) + "\"}", 500);
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        
+        private void handleAddSnack(HttpExchange exchange) throws IOException {
+            Connection conn = null;
+            try {
+                // Read request body
+                String requestBody = new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8);
+                String itemName = extractJsonValue(requestBody, "itemName");
+                double price = Double.parseDouble(extractJsonValue(requestBody, "price"));
+                int quantity = Integer.parseInt(extractJsonValue(requestBody, "quantity"));
+                
+                conn = DatabaseConnection.getConnection();
+                conn.setAutoCommit(false);
+                
+                // Insert the new snack
+                PreparedStatement stmt = conn.prepareStatement(
+                    "INSERT INTO snackscounter (ItemName, Price, Quantity) VALUES (?, ?, ?)",
+                    PreparedStatement.RETURN_GENERATED_KEYS
+                );
+                stmt.setString(1, itemName);
+                stmt.setDouble(2, price);
+                stmt.setInt(3, quantity);
+                
+                int added = stmt.executeUpdate();
+                
+                if (added > 0) {
+                    ResultSet rs = stmt.getGeneratedKeys();
+                    int newSnackId = -1;
+                    if (rs.next()) {
+                        newSnackId = rs.getInt(1);
+                    }
+                    
+                    conn.commit();
+                    sendJsonResponse(exchange, 
+                        "{\"success\": true, \"message\": \"Snack added successfully\", \"id\": " + newSnackId + "}", 
+                        201);
+                } else {
+                    conn.rollback();
+                    sendJsonResponse(exchange, "{\"error\": \"Failed to add snack\"}", 500);
+                }
+                
+            } catch (Exception e) {
+                e.printStackTrace();
+                if (conn != null) {
+                    try {
+                        conn.rollback();
+                    } catch (SQLException ex) {
+                        ex.printStackTrace();
+                    }
+                }
+                sendJsonResponse(exchange, "{\"error\": \"" + escapeJson(e.getMessage()) + "\"}", 500);
+            } finally {
+                if (conn != null) {
+                    try {
+                        conn.close();
+                    } catch (SQLException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
     }
 }

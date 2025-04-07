@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CineMax - Snack Inventory Management</title>
+    <link rel="stylesheet" href="styles.css">
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        .admin-container {
+            max-width: 1000px;
+            margin: 20px auto;
+            padding: 20px;
+            background-color: #fff;
+            border-radius: 10px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        
+        .admin-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+        
+        .admin-title {
+            color: #4a1967;
+            font-size: 1.8rem;
+            margin: 0;
+        }
+        
+        .add-snack-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 10px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        
+        .add-snack-btn:hover {
+            background-color: #45a049;
+        }
+        
+        .snack-inventory-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+        
+        .snack-inventory-table th,
+        .snack-inventory-table td {
+            padding: 12px;
+            text-align: left;
+            border-bottom: 1px solid #ddd;
+        }
+        
+        .snack-inventory-table th {
+            background-color: #f5f5f5;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        .snack-inventory-table tr:hover {
+            background-color: #f9f9f9;
+        }
+        
+        .stock-level {
+            padding: 5px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+        
+        .stock-high {
+            background-color: #d4edda;
+            color: #155724;
+        }
+        
+        .stock-medium {
+            background-color: #fff3cd;
+            color: #856404;
+        }
+        
+        .stock-low {
+            background-color: #f8d7da;
+            color: #721c24;
+        }
+        
+        .edit-btn {
+            background-color: #3498db;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .edit-btn:hover {
+            background-color: #2980b9;
+        }
+        
+        .edit-form {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+        }
+        
+        .edit-form input {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .edit-form input[type="number"] {
+            width: 80px;
+        }
+        
+        .edit-form .save-btn {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        .edit-form .cancel-btn {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        /* Additional styles for the add snack modal */
+        .modal {
+            display: none;
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        
+        .modal.show {
+            display: flex;
+        }
+        
+        .form-group {
+            margin-bottom: 15px;
+        }
+        
+        .form-group label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 500;
+        }
+        
+        .form-group input {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .form-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="brand">
+            <i class="fas fa-film"></i>
+            <a href="/" class="brand-name">CineMax</a>
+        </div>
+        
+        <h1>Admin Panel</h1>
+        
+        <div class="auth-section">
+            <a href="/" class="auth-btn login-btn">Back to Site</a>
+        </div>
+    </header>
+
+    <div class="admin-container">
+        <div class="admin-header">
+            <h2 class="admin-title">Snack Inventory Management</h2>
+            <button class="add-snack-btn" id="addSnackBtn">
+                <i class="fas fa-plus"></i> Add New Snack
+            </button>
+        </div>
+        
+        <table class="snack-inventory-table">
+            <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Item Name</th>
+                    <th>Price (₹)</th>
+                    <th>Quantity</th>
+                    <th>Stock Level</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="snackTableBody">
+                <!-- Snack items will be loaded here -->
+            </tbody>
+        </table>
+    </div>
+    
+    <div id="notification" class="notification"></div>
+    
+    <!-- Add a modal for adding new snacks -->
+    <div id="addSnackModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeAddSnackModal()">&times;</span>
+            <h2>Add New Snack</h2>
+            <form id="addSnackForm">
+                <div class="form-group">
+                    <label for="newItemName">Item Name:</label>
+                    <input type="text" id="newItemName" required>
+                </div>
+                <div class="form-group">
+                    <label for="newPrice">Price (₹):</label>
+                    <input type="number" id="newPrice" step="0.01" min="0" required>
+                </div>
+                <div class="form-group">
+                    <label for="newQuantity">Initial Quantity:</label>
+                    <input type="number" id="newQuantity" min="0" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="save-btn">Add Snack</button>
+                    <button type="button" class="cancel-btn" onclick="closeAddSnackModal()">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            loadSnackInventory();
+            
+            document.getElementById('addSnackBtn').addEventListener('click', function() {
+                openAddSnackModal();
+            });
+            
+            document.getElementById('addSnackForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                addNewSnack();
+            });
+        });
+        
+        function loadSnackInventory() {
+            fetch('/api/admin/snacks')
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(err => Promise.reject(err));
+                    }
+                    return response.json();
+                })
+                .then(snacks => {
+                    const tableBody = document.getElementById('snackTableBody');
+                    tableBody.innerHTML = '';
+                    
+                    snacks.forEach(snack => {
+                        const row = document.createElement('tr');
+                        row.dataset.id = snack.id;
+                        
+                        // Determine stock level
+                        let stockLevel = '';
+                        let stockClass = '';
+                        if (snack.quantity > 50) {
+                            stockLevel = 'High';
+                            stockClass = 'stock-high';
+                        } else if (snack.quantity > 10) {
+                            stockLevel = 'Medium';
+                            stockClass = 'stock-medium';
+                        } else {
+                            stockLevel = 'Low';
+                            stockClass = 'stock-low';
+                        }
+                        
+                        row.innerHTML = `
+                            <td>${snack.id}</td>
+                            <td>${escapeHtml(snack.itemName)}</td>
+                            <td>${snack.price.toFixed(2)}</td>
+                            <td>${snack.quantity}</td>
+                            <td><span class="stock-level ${stockClass}">${stockLevel}</span></td>
+                            <td>
+                                <button class="edit-btn" onclick="editSnack(${snack.id})">
+                                    <i class="fas fa-edit"></i> Edit
+                                </button>
+                            </td>
+                        `;
+                        
+                        tableBody.appendChild(row);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading snack inventory:', error);
+                    showNotification('Error loading snack inventory. Please try again.', true);
+                });
+        }
+        
+        function editSnack(snackId) {
+            const row = document.querySelector(`tr[data-id="${snackId}"]`);
+            const cells = row.querySelectorAll('td');
+            
+            const itemName = cells[1].textContent;
+            const price = parseFloat(cells[2].textContent);
+            const quantity = parseInt(cells[3].textContent);
+            
+            // Replace the regular cells with input fields
+            cells[1].innerHTML = `<input type="text" value="${escapeHtml(itemName)}" id="itemName-${snackId}">`;
+            cells[2].innerHTML = `<input type="number" step="0.01" min="0" value="${price.toFixed(2)}" id="price-${snackId}">`;
+            cells[3].innerHTML = `<input type="number" min="0" value="${quantity}" id="quantity-${snackId}">`;
+            cells[5].innerHTML = `
+                <div class="edit-form">
+                    <button class="save-btn" onclick="saveSnack(${snackId})">Save</button>
+                    <button class="cancel-btn" onclick="loadSnackInventory()">Cancel</button>
+                </div>
+            `;
+        }
+        
+        function saveSnack(snackId) {
+            const itemName = document.getElementById(`itemName-${snackId}`).value;
+            const price = parseFloat(document.getElementById(`price-${snackId}`).value);
+            const quantity = parseInt(document.getElementById(`quantity-${snackId}`).value);
+            
+            if (!itemName) {
+                showNotification('Item name cannot be empty', true);
+                return;
+            }
+            
+            if (isNaN(price) || price < 0) {
+                showNotification('Price must be a positive number', true);
+                return;
+            }
+            
+            if (isNaN(quantity) || quantity < 0) {
+                showNotification('Quantity must be a positive number', true);
+                return;
+            }
+            
+            fetch('/api/admin/snacks', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    id: snackId,
+                    itemName: itemName,
+                    price: price,
+                    quantity: quantity
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                showNotification('Snack updated successfully');
+                loadSnackInventory();
+            })
+            .catch(error => {
+                console.error('Error updating snack:', error);
+                showNotification(error.message || 'Error updating snack. Please try again.', true);
+            });
+        }
+        
+        function showNotification(message, isError = false) {
+            const notification = document.getElementById('notification');
+            notification.textContent = message;
+            notification.classList.add('show');
+            if (isError) {
+                notification.classList.add('error');
+            } else {
+                notification.classList.remove('error');
+            }
+            
+            setTimeout(() => {
+                notification.classList.remove('show');
+            }, 3000);
+        }
+        
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+        
+        function openAddSnackModal() {
+            document.getElementById('addSnackModal').classList.add('show');
+        }
+        
+        function closeAddSnackModal() {
+            document.getElementById('addSnackModal').classList.remove('show');
+            document.getElementById('addSnackForm').reset();
+        }
+        
+        function addNewSnack() {
+            const itemName = document.getElementById('newItemName').value;
+            const price = parseFloat(document.getElementById('newPrice').value);
+            const quantity = parseInt(document.getElementById('newQuantity').value);
+            
+            if (!itemName) {
+                showNotification('Item name cannot be empty', true);
+                return;
+            }
+            
+            if (isNaN(price) || price < 0) {
+                showNotification('Price must be a positive number', true);
+                return;
+            }
+            
+            if (isNaN(quantity) || quantity < 0) {
+                showNotification('Quantity must be a positive number', true);
+                return;
+            }
+            
+            fetch('/api/admin/snacks', {
+                method: 'PUT',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    itemName: itemName,
+                    price: price,
+                    quantity: quantity
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => Promise.reject(err));
+                }
+                return response.json();
+            })
+            .then(data => {
+                if (data.error) {
+                    throw new Error(data.error);
+                }
+                showNotification('Snack added successfully');
+                closeAddSnackModal();
+                loadSnackInventory();
+            })
+            .catch(error => {
+                console.error('Error adding snack:', error);
+                showNotification(error.message || 'Error adding snack. Please try again.', true);
+            });
+        }
+    </script>
+</body>
+</html> 
