@@ -96,9 +96,9 @@ function loadMovies() {
             // Then display non-trending movies
             data.filter(movie => !movie.trending && !processedMovieIds.has(movie.id))
                 .forEach(movie => {
-                    const movieCard = createMovieCard(movie);
-                    movieContainer.appendChild(movieCard);
-                });
+                const movieCard = createMovieCard(movie);
+                movieContainer.appendChild(movieCard);
+            });
         })
         .catch(error => {
             console.error('Error loading movies:', error);
@@ -139,9 +139,9 @@ function loadSnacks() {
             // Then display non-trending snacks
             snacks.filter(snack => !snack.trending && !processedSnackIds.has(snack.id))
                 .forEach(snack => {
-                    const snackItem = createSnackItem(snack);
-                    snackContainer.appendChild(snackItem);
-                });
+                const snackItem = createSnackItem(snack);
+                snackContainer.appendChild(snackItem);
+            });
         })
         .catch(error => {
             console.error('Error loading snacks:', error);
@@ -296,6 +296,11 @@ function hideBookingForm() {
 }
 
 function showSnackForm(reservationId) {
+    // Hide the ticket modal first
+    const ticketModal = document.getElementById('ticketModal');
+    ticketModal.classList.remove('show');
+    ticketModal.style.display = 'none';
+    
     const bookingForm = document.getElementById('bookingForm');
     bookingForm.style.display = 'none';
     
@@ -389,6 +394,7 @@ function showTicketDetails(ticketData) {
         </div>
         <div class="ticket-actions">
             <button onclick="showSnackForm(${ticketData.reservationId})" class="submit-btn">Order Snacks</button>
+            <button onclick="confirmTicket(${ticketData.reservationId})" class="confirm-ticket-btn">Confirm Ticket</button>
             <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>
             <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
         </div>
@@ -662,97 +668,77 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     const ticketModal = document.getElementById('ticketModal');
     const ticketContent = document.getElementById('ticketContent');
     
-    // Debug log to check ticket data
-    console.log('Final Receipt Ticket Data:', ticketData);
-    
-    // Get show timing information from the form dataset
-    const ticketForm = document.getElementById('ticketForm');
-    const showTime = ticketForm.dataset.showTime || 'N/A';
-    const showDate = ticketForm.dataset.showDate ? new Date(ticketForm.dataset.showDate).toLocaleDateString() : 'N/A';
-    const screenNo = ticketForm.dataset.screenNo || 'N/A';
-    const movieName = ticketForm.dataset.movieName || ticketData.movieTitle || 'N/A';
-    
     let receiptHtml = `
         <div class="ticket-container">
+            ${ticketData.status === 'Confirmed' ? '<div class="status-badge confirmed">CONFIRMED</div>' : ''}
             <div class="ticket-header">
                 <h2>Movie Ticket</h2>
             </div>
             <div class="ticket-body">
                 <div class="movie-info">
-                    <h3>${escapeHtml(movieName)}</h3>
+                    <h3>${escapeHtml(ticketData.movieTitle)}</h3>
                     <div class="show-details">
-                        <p><i class="icon-calendar"></i> <strong>Date:</strong> ${showDate}</p>
-                        <p><i class="icon-time"></i> <strong>Time:</strong> ${showTime}</p>
-                        <p><i class="icon-screen"></i> <strong>Screen:</strong> ${screenNo}</p>
+                        <p><i class="icon-calendar"></i> <strong>Date:</strong> ${ticketData.showDate || 'N/A'}</p>
+                        <p><i class="icon-time"></i> <strong>Time:</strong> ${ticketData.showTime || 'N/A'}</p>
+                        <p><i class="icon-screen"></i> <strong>Screen:</strong> ${ticketData.screenNo || 'N/A'}</p>
                     </div>
                 </div>
                 <div class="ticket-divider"></div>
                 <div class="seat-details">
                     <h4>Seat Details</h4>
-            <div class="ticket-seats">
+                    <div class="ticket-seats">
     `;
     
     let ticketTotal = 0;
-    ticketData.tickets.forEach((ticket, index) => {
-        // Debug log for each ticket
-        console.log('Final Receipt Ticket:', ticket);
-        
-        // Ensure all ticket properties are properly accessed
-        const rowNo = ticket.rowNo !== undefined ? ticket.rowNo : 'N/A';
-        const seatNo = ticket.seatNo !== undefined ? ticket.seatNo : 'N/A';
-        const screenNo = ticket.screenNo !== undefined ? ticket.screenNo : 'N/A';
-        const price = ticket.price !== undefined ? ticket.price : 0;
-        
-        ticketTotal += price;
+    ticketData.tickets.forEach(ticket => {
+        ticketTotal += ticket.price || 0;
         receiptHtml += `
             <div class="seat-info">
-                <div class="seat-number">Row ${rowNo}, Seat ${seatNo}</div>
-                <div class="seat-price">₹${price.toFixed(2)}</div>
+                <div class="seat-number">Row ${ticket.rowNo || 'N/A'}, Seat ${ticket.seatNo || 'N/A'}</div>
+                <div class="seat-price">₹${(ticket.price || 0).toFixed(2)}</div>
             </div>
         `;
     });
     
     receiptHtml += `
-        </div>
-        <div class="ticket-total">
+                    </div>
+                    <div class="ticket-total">
                         <p><strong>Total Amount:</strong> ₹${ticketTotal.toFixed(2)}</p>
                     </div>
-        </div>
+                </div>
     `;
     
-    // Add snack order details if available
-    if (snackOrderDetails && snackOrderDetails.orders && snackOrderDetails.orders.length > 0) {
-    receiptHtml += `
+    // Use snack orders from either source
+    const snacks = ticketData.snacks || (snackOrderDetails ? snackOrderDetails.orders : null);
+    if (snacks && snacks.length > 0) {
+        receiptHtml += `
                 <div class="ticket-divider"></div>
-        <div class="snack-section">
+                <div class="snack-section">
                     <h4>Snack Order Details</h4>
+                    ${ticketData.employeeName ? 
+                        `<div class="employee-info">
+                            <p><i class="fas fa-user-tie"></i> You will be served by: <strong>${escapeHtml(ticketData.employeeName)}</strong></p>
+                        </div>` : ''}
                     <div class="snack-orders">
-    `;
-    
-    let snackTotal = 0;
-    snackOrderDetails.orders.forEach(order => {
-            // Use details directly from response if available, otherwise look up in window.snacksData
-            const itemName = order.itemName || (window.snacksData && 
-                window.snacksData.find(s => s.id === order.snackId)?.itemName) || 'Unknown';
-            const price = order.price || (window.snacksData && 
-                window.snacksData.find(s => s.id === order.snackId)?.price) || 0;
-            const quantity = order.quantity || 0;
-            const totalPrice = order.total || (price * quantity);
-            
+        `;
+        
+        let snackTotal = 0;
+        snacks.forEach(order => {
+            const totalPrice = order.total || (order.price * order.quantity);
             snackTotal += totalPrice;
             
             receiptHtml += `
                 <div class="snack-info">
-                    <p><strong>Item:</strong> ${escapeHtml(itemName)}</p>
-                    <p><strong>Quantity:</strong> ${quantity}</p>
-                    <p class="price"><strong>Price:</strong> ₹${price.toFixed(2)} × ${quantity} = ₹${totalPrice.toFixed(2)}</p>
+                    <p><strong>Item:</strong> ${escapeHtml(order.itemName)}</p>
+                    <p><strong>Quantity:</strong> ${order.quantity}</p>
+                    <p class="price"><strong>Price:</strong> ₹${order.price.toFixed(2)} × ${order.quantity} = ₹${totalPrice.toFixed(2)}</p>
                 </div>
             `;
-    });
-    
-    receiptHtml += `
-            </div>
-            <div class="snack-total">
+        });
+        
+        receiptHtml += `
+                    </div>
+                    <div class="snack-total">
                         <p><strong>Total Snack Amount:</strong> ₹${snackTotal.toFixed(2)}</p>
                     </div>
                     <div class="grand-total">
@@ -769,6 +755,9 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
                 </div>
             </div>
             <div class="ticket-actions">
+                ${ticketData.status === 'Confirmed' ? 
+                    `<button onclick="downloadTicket()" class="download-ticket-btn"><i class="fas fa-download"></i> Download Ticket</button>` : 
+                    `<button onclick="confirmTicket(${ticketData.reservationId})" class="confirm-ticket-btn">Confirm Ticket</button>`}
                 <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>
                 <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
             </div>
@@ -776,11 +765,93 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
     `;
     
     ticketContent.innerHTML = receiptHtml;
-    ticketModal.style.display = 'none'; // Reset display
+    ticketModal.style.display = 'none';
     requestAnimationFrame(() => {
         ticketModal.classList.add('show');
-    ticketModal.style.display = 'flex';
+        ticketModal.style.display = 'flex';
     });
+}
+
+function downloadTicket() {
+    const ticketContent = document.querySelector('.ticket-container').cloneNode(true);
+    
+    // Remove action buttons from the download version
+    const actionButtons = ticketContent.querySelector('.ticket-actions');
+    if (actionButtons) {
+        actionButtons.remove();
+    }
+    
+    const html = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Movie Ticket</title>
+            <style>
+                body {
+                    font-family: Arial, sans-serif;
+                    line-height: 1.6;
+                    color: #333;
+                    max-width: 800px;
+                    margin: 20px auto;
+                    padding: 20px;
+                }
+                .ticket-container {
+                    border: 2px solid #333;
+                    padding: 20px;
+                    border-radius: 10px;
+                }
+                .status-badge {
+                    background-color: #4CAF50;
+                    color: white;
+                    padding: 5px 10px;
+                    border-radius: 5px;
+                    display: inline-block;
+                    margin-bottom: 10px;
+                }
+                .ticket-divider {
+                    border-top: 1px solid #ddd;
+                    margin: 15px 0;
+                }
+                .employee-info {
+                    background-color: #f8f9fa;
+                    padding: 10px;
+                    border-radius: 5px;
+                    margin: 10px 0;
+                    border-left: 4px solid #3498db;
+                }
+                .ticket-total, .snack-total, .grand-total {
+                    margin-top: 15px;
+                    padding: 10px;
+                    background-color: #f8f9fa;
+                }
+                .grand-total {
+                    font-weight: bold;
+                    font-size: 1.1em;
+                }
+                .ticket-footer {
+                    margin-top: 20px;
+                    padding-top: 10px;
+                    border-top: 1px solid #ddd;
+                    font-size: 0.9em;
+                }
+            </style>
+            <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        </head>
+        <body>
+            ${ticketContent.outerHTML}
+        </body>
+        </html>
+    `;
+    
+    const blob = new Blob([html], { type: 'text/html' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `movie-ticket-${Date.now()}.html`;
+    document.body.appendChild(a);
+    a.click();
+    window.URL.revokeObjectURL(url);
+    document.body.removeChild(a);
 }
 
 // Add this function to update available seats display after booking
@@ -900,5 +971,43 @@ function cancelTicket(reservationId) {
     .catch(error => {
         console.error('Error cancelling ticket:', error);
         showNotification(error.message || 'Error cancelling ticket. Please try again.', true);
+    });
+}
+
+// Add the confirmTicket function
+function confirmTicket(reservationId) {
+    if (!confirm('Are you sure you want to confirm this ticket? This action cannot be undone.')) {
+        return;
+    }
+    
+    fetch('/api/booking/confirm', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ reservationId: reservationId })
+    })
+    .then(response => {
+        if (!response.ok) {
+            return response.json().then(err => Promise.reject(err));
+        }
+        return response.json();
+    })
+    .then(data => {
+        if (data.error) {
+            throw new Error(data.error);
+        }
+        showNotification('Ticket confirmed successfully!');
+        
+        // Update the ticket display with confirmed status and download button
+        if (data.ticket) {
+            showFinalReceipt(data.ticket);
+            // Automatically trigger download
+            downloadTicket();
+        }
+    })
+    .catch(error => {
+        console.error('Error confirming ticket:', error);
+        showNotification(error.message || 'Error confirming ticket. Please try again.', true);
     });
 }

@@ -529,7 +529,7 @@ public class SimpleServer {
                 // Get any available employee for snack service
                 System.out.println("Looking for available employee...");
                 PreparedStatement empStmt = conn.prepareStatement(
-                    "SELECT EmployeeID FROM employees ORDER BY RAND() LIMIT 1"
+                    "SELECT EmployeeID, Name FROM employees ORDER BY RAND() LIMIT 1"
                 );
                 ResultSet empRs = empStmt.executeQuery();
                 System.out.println("Employee query executed.");
@@ -538,7 +538,8 @@ public class SimpleServer {
                     throw new SQLException("No employee available");
                 }
                 int employeeId = empRs.getInt("EmployeeID");
-                System.out.println("Found employee ID: " + employeeId);
+                String employeeName = empRs.getString("Name");
+                System.out.println("Found employee ID: " + employeeId + ", Name: " + employeeName);
                 
                 // Process each snack order
                 StringBuilder orderSummary = new StringBuilder();
@@ -606,7 +607,7 @@ public class SimpleServer {
                 conn.commit();
                 SimpleServer.sendJsonResponse(exchange, 
                     "{\"success\": true, \"message\": \"Snacks ordered successfully\", \"orders\": " + 
-                    orderSummary.toString() + "}", 200);
+                    orderSummary.toString() + ", \"employeeName\": \"" + SimpleServer.escapeJson(employeeName) + "\"}", 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
@@ -653,8 +654,105 @@ public class SimpleServer {
                 stmt.setInt(1, reservationId);
                 stmt.executeUpdate();
                 
+                // Get complete ticket information
+                PreparedStatement ticketStmt = conn.prepareStatement(
+                    "SELECT t.*, m.Title as MovieTitle, st.ShowTime, st.ShowDate, st.ScreenNo, " +
+                    "e.Name as EmployeeName " +
+                    "FROM tickets t " +
+                    "JOIN show_timings st ON t.ShowID = st.ShowID " +
+                    "JOIN movie m ON st.MovieID = m.MovieID " +
+                    "LEFT JOIN snackorders so ON t.ReservationID = so.ReservationID " +
+                    "LEFT JOIN employees e ON so.EmployeeID = e.EmployeeID " +
+                    "WHERE t.ReservationID = ?"
+                );
+                ticketStmt.setInt(1, reservationId);
+                ResultSet rs = ticketStmt.executeQuery();
+                
+                StringBuilder ticketsJson = new StringBuilder();
+                ticketsJson.append("[");
+                boolean first = true;
+                String movieTitle = "";
+                String showTime = "";
+                String showDate = "";
+                int screenNo = 0;
+                String employeeName = null;
+                
+                while (rs.next()) {
+                    if (!first) {
+                        ticketsJson.append(",");
+                    }
+                    movieTitle = rs.getString("MovieTitle");
+                    showTime = rs.getString("ShowTime");
+                    showDate = rs.getString("ShowDate");
+                    screenNo = rs.getInt("ScreenNo");
+                    if (employeeName == null) {
+                        employeeName = rs.getString("EmployeeName");
+                    }
+                    
+                    ticketsJson.append("{")
+                        .append("\"rowNo\":").append(rs.getInt("RowNo")).append(",")
+                        .append("\"seatNo\":").append(rs.getInt("SeatNo")).append(",")
+                        .append("\"screenNo\":").append(rs.getInt("ScreenNo")).append(",")
+                        .append("\"price\":").append(rs.getDouble("Price"))
+                        .append("}");
+                    first = false;
+                }
+                ticketsJson.append("]");
+                
+                // Get snack orders if any
+                PreparedStatement snackStmt = conn.prepareStatement(
+                    "SELECT s.ItemName, so.Quantity, s.Price " +
+                    "FROM snackorders so " +
+                    "JOIN snackscounter s ON so.SnackID = s.SnackID " +
+                    "WHERE so.ReservationID = ?"
+                );
+                snackStmt.setInt(1, reservationId);
+                ResultSet snackRs = snackStmt.executeQuery();
+                
+                StringBuilder snacksJson = new StringBuilder();
+                snacksJson.append("[");
+                first = true;
+                
+                while (snackRs.next()) {
+                    if (!first) {
+                        snacksJson.append(",");
+                    }
+                    snacksJson.append("{")
+                        .append("\"itemName\":\"").append(escapeJson(snackRs.getString("ItemName"))).append("\",")
+                        .append("\"quantity\":").append(snackRs.getInt("Quantity")).append(",")
+                        .append("\"price\":").append(snackRs.getDouble("Price"))
+                        .append("}");
+                    first = false;
+                }
+                snacksJson.append("]");
+                
                 conn.commit();
-                SimpleServer.sendJsonResponse(exchange, "{\"success\": true, \"message\": \"Booking confirmed successfully\"}", 200);
+                
+                String response = String.format(
+                    "{\"success\":true," +
+                    "\"message\":\"Booking confirmed successfully\"," +
+                    "\"ticket\":{" +
+                    "\"reservationId\":%d," +
+                    "\"movieTitle\":\"%s\"," +
+                    "\"showTime\":\"%s\"," +
+                    "\"showDate\":\"%s\"," +
+                    "\"screenNo\":%d," +
+                    "\"status\":\"Confirmed\"," +
+                    "\"tickets\":%s," +
+                    "\"snacks\":%s," +
+                    "\"employeeName\":\"%s\"" +
+                    "}}",
+                    reservationId,
+                    escapeJson(movieTitle),
+                    escapeJson(showTime),
+                    escapeJson(showDate),
+                    screenNo,
+                    ticketsJson.toString(),
+                    snacksJson.toString(),
+                    employeeName != null ? escapeJson(employeeName) : ""
+                );
+                
+                SimpleServer.sendJsonResponse(exchange, response, 200);
                 
             } catch (Exception e) {
                 e.printStackTrace();
