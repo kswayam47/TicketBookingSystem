@@ -689,15 +689,26 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
                     <div class="ticket-seats">
     `;
     
+    // Create a Set to track unique seats and calculate total
     let ticketTotal = 0;
+    const processedSeats = new Set();
+    
     ticketData.tickets.forEach(ticket => {
-        ticketTotal += ticket.price || 0;
-        receiptHtml += `
-            <div class="seat-info">
-                <div class="seat-number">Row ${ticket.rowNo || 'N/A'}, Seat ${ticket.seatNo || 'N/A'}</div>
-                <div class="seat-price">₹${(ticket.price || 0).toFixed(2)}</div>
-            </div>
-        `;
+        // Create a unique key for each seat
+        const seatKey = `${ticket.rowNo}-${ticket.seatNo}`;
+        
+        // Only process if we haven't seen this seat before
+        if (!processedSeats.has(seatKey)) {
+            processedSeats.add(seatKey);
+            ticketTotal += ticket.price || 0;
+            
+            receiptHtml += `
+                <div class="seat-info">
+                    <div class="seat-number">Row ${ticket.rowNo || 'N/A'}, Seat ${ticket.seatNo || 'N/A'}</div>
+                    <div class="seat-price">₹${(ticket.price || 0).toFixed(2)}</div>
+                </div>
+            `;
+        }
     });
     
     receiptHtml += `
@@ -757,8 +768,8 @@ function showFinalReceipt(ticketData, snackOrderDetails) {
             <div class="ticket-actions">
                 ${ticketData.status === 'Confirmed' ? 
                     `<button onclick="downloadTicket()" class="download-ticket-btn"><i class="fas fa-download"></i> Download Ticket</button>` : 
-                    `<button onclick="confirmTicket(${ticketData.reservationId})" class="confirm-ticket-btn">Confirm Ticket</button>`}
-                <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>
+                    `<button onclick="confirmTicket(${ticketData.reservationId})" class="confirm-ticket-btn">Confirm Ticket</button>
+                     <button onclick="cancelTicket(${ticketData.reservationId})" class="cancel-ticket-btn">Cancel Ticket</button>`}
                 <button onclick="hideTicketModal()" class="cancel-btn">Close</button>
             </div>
         </div>

@@ -656,12 +656,12 @@ public class SimpleServer {
                 
                 // Get complete ticket information
                 PreparedStatement ticketStmt = conn.prepareStatement(
-                    "SELECT t.*, m.Title as MovieTitle, st.ShowTime, st.ShowDate, st.ScreenNo, " +
+                    "SELECT DISTINCT t.*, m.Title as MovieTitle, st.ShowTime, st.ShowDate, st.ScreenNo, " +
                     "e.Name as EmployeeName " +
                     "FROM tickets t " +
                     "JOIN show_timings st ON t.ShowID = st.ShowID " +
                     "JOIN movie m ON st.MovieID = m.MovieID " +
-                    "LEFT JOIN snackorders so ON t.ReservationID = so.ReservationID " +
+                    "LEFT JOIN (SELECT DISTINCT ReservationID, EmployeeID FROM snackorders) so ON t.ReservationID = so.ReservationID " +
                     "LEFT JOIN employees e ON so.EmployeeID = e.EmployeeID " +
                     "WHERE t.ReservationID = ?"
                 );
